@@ -1,0 +1,3607 @@
+---
+title: "What accounted for the change in government health spending, 2000-2023: a global decomposition"
+subtitle: "Every slide of the deck rebuilt in R from the input data"
+author: "Farizal R. Muharram"
+date: "20 November 2026"
+output:
+  html_document:
+    self_contained: true
+    code_folding: hide
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: true
+    mathjax: null
+    highlight: tango
+---
+
+# About this file
+
+## What the deck answers
+
+We measure how much economic growth, the size of government and health's share of the government budget accounted for the change in real government health spending per person in every country with data from 2000 to 2023. In Section 1 (slides 1 to 12), we report results for the world, income groups, World Bank regions and individual countries, then identify records to examine in detail. In Section 2 (slides 13 to 21), we consider budget years 2027 to 2029 and set out three amounts for every country: the minimum ask that holds health's share steady, an upper ask and the ceiling set by growth in the whole government budget. We list every country in two annexes (slides 22 to 35).
+
+We rebuild every slide from the input data. Each slide has a heading, an explanation and a code chunk that computes its numbers, prints them in a table and draws its main figure. Our figures use the deck's numbers but not its layout. In the final chunk, we check every printed number against the output tables used to build the deck.
+
+## The identity
+
+We write government health spending per person as the product of three parts:
+
+<p style="text-align:center"><b>government health spending per person = GDP per person &times; (government spending
+&divide; GDP) &times; (government health spending &divide; government spending)</b></p>
+
+We read the first part as the economy, the second as the size of government (general government expenditure as a share of GDP) and the third as health priority (domestic general government health expenditure as a share of general government expenditure). Natural logarithms turn the product into a sum, so the change in the logarithm of spending per person between two years splits exactly into the changes in the logarithms of its three parts. We calculate every change in this file as an average annual change in log points, 100 &times; ln(end value / start value) / number of years, which is close to a percentage change a year when changes are small. The identity means the three parts add up to the total in every country, period and group taken as a whole. Our split shows where a change came from in arithmetic; the identity does not explain why any part moved.
+
+## The data
+
+We use R data files (RDS) in `data/`. For each file, `data/README.md` records the source, retrieval date, size and sha256 of the CSV used to create it.
+
+- We use `ghed_extract.rds`: World Health Organization Global Health Expenditure Database (GHED), 2025 update, retrieved
+  28 May 2026. Seven series for every country and year: GDP per person and current health expenditure per person in
+  current US\$, current health expenditure per person in constant 2023 US\$, general government expenditure as a share
+  of GDP, domestic general government health expenditure as a share of general government expenditure and per person,
+  and population.
+- We use `countries.rds` and `group_labels.rds`: the 195 countries with their World Bank income group and region (2023
+  classification, as published with the GHED 2025 update) and the group labels.
+- We use `weo_currency_extract.rds`: IMF World Economic Outlook, October 2026, retrieved 23 October 2026. GDP in national
+  currency at current and constant prices, general government expenditure as a share of GDP, GDP in US\$ and population,
+  2024 to 2029. Used only by Section 2.
+- We read `reference_outputs.rds` only in the final check; the file holds the report's own output tables.
+
+## How to run it
+
+1. Unzip the folder anywhere and open `global-decomposition-deck.Rmd` in RStudio. Knitting runs in the folder that
+   holds the file, so the relative paths to `data/` and `fonts/` work without any change.
+2. Install any missing package once: `install.packages(c("dplyr", "tidyr", "scales", "ggplot2", "knitr", "rmarkdown", "systemfonts", "ragg"))`.
+3. Open `global-decomposition-deck.Rmd` and press Knit, or run `rmarkdown::render("global-decomposition-deck.Rmd")`.
+   The whole file runs in about a minute and writes only the HTML file, next to the Rmd file.
+
+Our figures use Open Sans. The six font files and their licence (SIL Open Font Licence 1.1) are in `fonts/` and are
+registered at the start of the setup chunk, so nothing has to be installed on the computer.
+
+# Setup and data
+
+```{r setup, message = FALSE}
+## Setup: packages, the Open Sans font shipped in fonts/, chunk options, colours, the
+## plot theme and the way the slides print numbers. Every path in this file is
+## relative to the folder that holds it.
+# We use dplyr and tidyr for the tables, scales for printing numbers and ggplot2 for the figures
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(knitr)
+
+# We register the Open Sans files shipped in fonts/, so the figures look the same on any computer
+font_styles <- c("Regular", "Bold", "Italic", "BoldItalic", "SemiBold", "SemiBoldItalic")
+font_files <- file.path("fonts", paste0("OpenSans-", font_styles, ".ttf"))
+names(font_files) <- font_styles
+if (!"Open Sans" %in% systemfonts::registry_fonts()$family) {
+  registered <- tryCatch(
+    {
+      systemfonts::register_font(
+        "Open Sans",
+        plain = font_files[["Regular"]],
+        bold = font_files[["Bold"]],
+        italic = font_files[["Italic"]],
+        bolditalic = font_files[["BoldItalic"]]
+      )
+      TRUE
+    },
+    error = function(e) FALSE
+  )
+  # a computer with Open Sans installed refuses the registration; we then side-load the files, and
+  # systemfonts searches side-loaded files first, so the figures still use the files in fonts/
+  if (!registered) systemfonts::add_fonts(unname(font_files))
+}
+knitr::opts_chunk$set(
+  dev = "ragg_png", dpi = 150, fig.width = 9, fig.height = 5.2, message = FALSE, warning = FALSE
+)
+FONT <- "Open Sans"
+
+# World Bank colours used by the deck
+WB <- c(
+  blue = "#0071bc", navy = "#002244", rust = "#b5452c", grey = "#9aa3ad", grey2 = "#8f99a3",
+  light = "#7fc4ea", sky = "#5fb3e4", slate = "#5b6470", tint = "#dcebf6", rosy = "#f2c9bd",
+  pale = "#c9d0d6"
+)
+PART_LABEL <- c(
+  econ = "Economy", budget = "Size of government", priority = "Health priority", total = "Total"
+)
+PART_FILL <- c(
+  Economy = "#8f99a3", "Size of government" = "#7fc4ea", "Health priority" = "#0071bc",
+  Total = "#002244"
+)
+
+# One theme for every figure: Open Sans, explicit black x and y
+# axis lines, light major gridlines only
+figure_theme <- theme_minimal(base_size = 11, base_family = FONT) +
+  theme(
+    axis.line = element_line(colour = "black", linewidth = 0.5),
+    axis.ticks = element_line(colour = "black", linewidth = 0.4),
+    axis.text = element_text(colour = "black"),
+    axis.title = element_text(colour = "black"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(colour = "#e6e9ec", linewidth = 0.3),
+    plot.title = element_text(face = "bold", colour = WB[["navy"]]),
+    plot.subtitle = element_text(colour = "#3a434d"),
+    plot.caption = element_text(colour = WB[["slate"]], hjust = 0),
+    legend.position = "top",
+    legend.justification = "left",
+    legend.title = element_blank(),
+    strip.text = element_text(face = "bold", hjust = 0)
+  )
+theme_set(figure_theme)
+# we write the numbers and labels on the charts in Open Sans as well
+update_geom_defaults("text", list(family = FONT))
+
+# How the slides print numbers. The deck rounds each number once and the slide only prints it, so we
+# round and print in one step with the labelling functions of scales.
+signed <- scales::label_number(accuracy = 0.1, style_positive = "plus") # +1.2, -0.4, 0.0
+one_decimal <- scales::label_comma(accuracy = 0.1) # 1,234.5
+share_pct <- scales::label_percent(accuracy = 0.1, scale = 1, big.mark = ",") # 12.3% from per cent
+signed_pct <- scales::label_percent(
+  accuracy = 0.1, scale = 1, big.mark = ",", style_positive = "plus"
+) # +12.3%
+whole_pct <- scales::label_percent(accuracy = 1, scale = 1, big.mark = ",") # 1,234%
+
+# The slides print dollars whole from US$100 and with one decimal below. We keep this small function
+# because no scales labeller changes its accuracy with the size of the number.
+dollars <- function(x, prefix = "US$") {
+  whole <- scales::comma(x, accuracy = 1, prefix = prefix)
+  with_decimal <- scales::comma(x, accuracy = 0.1, prefix = prefix)
+  ifelse(abs(x) >= 100, whole, with_decimal)
+}
+
+# knitr::kable() prints one table, and each slide has a few, so this function prints a slide's list
+# of tables. We right-align the columns that hold only numbers, as the slides do.
+show_tables <- function(tables) {
+  for (caption in names(tables)) {
+    table <- tables[[caption]]
+    align <- rep("l", ncol(table))
+    for (j in seq_along(table)[-1]) {
+      column <- as.character(table[[j]])
+      numbers_only <- grepl("^[-+0-9.,%/ US$]*$", column) | column %in% c("-", "Not available")
+      if (all(numbers_only)) align[j] <- "r"
+    }
+    cat("\n\n")
+    print(knitr::kable(table, caption = caption, row.names = FALSE, align = align))
+    cat("\n\n")
+  }
+}
+
+# The bar chart of slides 3, 4, 10 and 11. We keep it as a function because four slides draw it and
+# ggplot2 has no single geom for it: one bar per row of `parts`, the three parts stacked (the
+# economy nearest zero) and the total as a diamond, with the total printed in a column right of the
+# bars. `parts` has the columns econ, budget, priority and total, the bar labels in `label_col` and,
+# if `facet` is given, the panel of each bar.
+plot_parts <- function(parts, label_col, xlab = "Average annual change, log points", facet = NULL) {
+  # we keep the first row at the top of the chart
+  bar_labels <- parts[[label_col]]
+  parts$row <- factor(bar_labels, levels = rev(unique(bar_labels)))
+  parts$panel <- if (is.null(facet)) "" else parts[[facet]]
+
+  # one bar segment per row and part
+  part_names <- PART_LABEL[c("econ", "budget", "priority")]
+  bars <- parts |>
+    select(row, panel, econ, budget, priority) |>
+    pivot_longer(c(econ, budget, priority), names_to = "part", values_to = "value") |>
+    mutate(part = factor(PART_LABEL[part], levels = part_names))
+
+  # we print the totals just right of the bar that reaches furthest
+  reach_right <- pmax(parts$econ, 0) + pmax(parts$budget, 0) + pmax(parts$priority, 0)
+  reach_left <- pmin(parts$econ, 0) + pmin(parts$budget, 0) + pmin(parts$priority, 0)
+  chart_width <- max(reach_right, parts$total, 0) - min(reach_left, parts$total, 0)
+  parts$label_x <- max(reach_right, parts$total) + 0.06 * chart_width
+
+  chart <- ggplot(bars, aes(x = value, y = row)) +
+    geom_col(aes(fill = part), width = 0.7, position = position_stack(reverse = TRUE)) +
+    geom_vline(xintercept = 0, colour = "black", linewidth = 0.4) +
+    geom_point(
+      data = parts, aes(x = total, y = row),
+      shape = 23, size = 2.8, fill = WB[["navy"]], colour = "white"
+    ) +
+    geom_text(
+      data = parts, aes(x = label_x, y = row, label = signed(total)),
+      hjust = 0, size = 3.2, colour = WB[["navy"]], fontface = "bold"
+    ) +
+    scale_x_continuous(expand = expansion(mult = c(0.04, 0.12))) +
+    scale_fill_manual(values = PART_FILL) +
+    labs(
+      x = xlab, y = NULL,
+      caption = "Bars: the three parts. Diamond and right-hand number: the total."
+    )
+  if (!is.null(facet)) {
+    chart <- chart + facet_grid(panel ~ ., scales = "free_y", space = "free_y")
+  }
+  chart
+}
+```
+
+```{r read-data}
+## Read the inputs: four RDS files converted one to one from the report's
+## CSV inputs (same columns, same types).
+# WHO GHED 2025 update, one row per country, year and series
+ghed_long <- readRDS("data/ghed_extract.rds")
+# the 195 countries with their World Bank income group and region
+countries <- readRDS("data/countries.rds")
+# labels and member counts of the income groups and regions
+group_labels <- readRDS("data/group_labels.rds")
+# IMF WEO October 2026, 2024 to 2029, one row per country, year and series (Section 2 only)
+weo_long <- readRDS("data/weo_currency_extract.rds")
+stopifnot(nrow(ghed_long) > 0, nrow(countries) == 195)
+data.frame(
+  file = c("ghed_extract", "countries", "group_labels", "weo_currency_extract"),
+  rows = c(nrow(ghed_long), nrow(countries), nrow(group_labels), nrow(weo_long)),
+  columns = c(ncol(ghed_long), ncol(countries), ncol(group_labels), ncol(weo_long))
+)
+```
+
+# Cleaning
+
+We start with the GHED extract, which is already tidy, so the cleaning is short. The next chunk records each decision that affects a number and the reason for that decision.
+
+- **Study period and windows.** We use 2000 to 2023 for the trend and fixed periods. Each country gets a
+  latest window: ten years ending at the latest year, up to 2024, in which all three parts are published, starting at
+  the earliest year from ten years back that also has all parts, and never shorter than five years. The rule is the
+  one the country profile slide uses, so the numbers agree with the country decks. Seven countries have 2024 data in
+  GHED, which is released in stages, so the windows of those seven countries run 2014-2024.
+- **Fixed periods.** We use 2000-2010, 2010-2019 and 2019-2023 to compare the same years in every country: the 2000s, the
+  decade up to the pandemic, and the pandemic years with their partial reversal. Exact end years are used, with no
+  substitution of a nearby year.
+- **Data flags.** We apply four rules inside each country's window to mark series that make a rate hard to read. A break
+  (B) is a budget share or health share that doubles or halves from one year to the next, which is where
+  reclassifications in the accounts usually sit. A shock (S) is real GDP per person rising by more than 25% or falling
+  by more than 20% in one year: war, conversion artefacts after high inflation, the 2020 collapse in tourism, oil booms.
+  An extreme end (E) is a share in the first or last year of the window more than twice or less than half its own
+  median over the window, which makes an endpoint rate unrepresentative. A level flag (L) is government spending above
+  100% of GDP or government health spending below US\$1 per person at either end. Flagged countries stay in every
+  median and aggregate but are left out of the instructive examples and listed apart among the warning cases.
+- **Real terms.** We use GHED's current health expenditure per person in current US\$ and constant 2023 US\$. We take the ratio of the two as GHED's own conversion factor for each country and year, then apply the factor to GDP per person. The two shares are ratios and need no conversion. One conversion for everything keeps the identity exact in constant prices, and we use the same conversion as the country profile slide. The factor mixes domestic prices and exchange rates, one of the limits we discuss on slide 12.
+- **Which country-years enter.** We keep a country-year only when the conversion factor, GDP per person and both shares
+  are published and above zero, since every part enters as a logarithm.
+
+```{r clean}
+## Cleaning: from the long GHED extract to one row per country and year with the
+## identity's three parts in real terms.
+# ---- 0. Decisions that shape the numbers ---------------------------------------------------------
+YEAR_MIN <- 2000 # first year of the study period
+YEAR_MAX <- 2023 # last year of the study period (fixed periods, trends)
+WINDOW_MAX_YEAR <- 2024 # latest year a window may end in: GHED's last, as on the country slide
+WINDOW <- 10 # window of ten years ending at the latest year with all parts
+MIN_SPAN <- 5 # shortest window accepted
+PERIODS <- tibble(
+  period = c("P1", "P2", "P3"),
+  y0 = c(2000, 2010, 2019),
+  y1 = c(2010, 2019, 2023)
+)
+FLAG_RATIO_STEP <- log(2) # B, break: a budget share or the health share doubles or halves in a year
+FLAG_GDP_STEP <- log(1.25) # S, shock: real GDP per person up more than 25% or down more than 20%
+FLAG_END <- log(2) # E, extreme end: a share at an end over twice or under half its window median
+FLAG_PIE_MAX <- 100 # L, level: government spending above 100% of GDP at either end, or
+FLAG_GHE_MIN <- 1 #    government health spending below US$1 per person (2023 US$) at either end
+
+# ---- 1. One row per country and year, one column per series --------------------------------------
+panel <- ghed_long |>
+  filter(!is.na(value)) |>
+  select(iso3, year, indicator, value) |>
+  pivot_wider(names_from = indicator, values_from = value) |>
+  arrange(iso3, year)
+
+# ---- 2. Real terms: GHED's constant-2023-US$ conversion factor k, applied to GDP per person ------
+# k is the ratio of GHED's two health spending series where both are published and above zero.
+# Every part enters as a logarithm, so we keep a country-year only when k, GDP per person and both
+# shares are published and above zero.
+panel <- panel |>
+  mutate(
+    k = if_else(che_usd2023_pc > 0 & che_pc_usd > 0, che_usd2023_pc / che_pc_usd, NA),
+    ok = !is.na(k) & !is.na(gdp_pc_usd) & gdp_pc_usd > 0 & !is.na(gge_gdp) & gge_gdp > 0 &
+      !is.na(gghed_gge) & gghed_gge > 0,
+    gdp_real = if_else(ok, gdp_pc_usd * k, NA), # real GDP per person, 2023 US$
+    pie = if_else(ok, gge_gdp, NA), # government spending, % of GDP
+    slice = if_else(ok, gghed_gge, NA), # health, % of government spending
+    ghe_real = gdp_real * pie / 100 * slice / 100, # government health spending per person
+    # we also rebuild spending in current US$ and compare it with GHED's own published series
+    ghe_cur = if_else(ok, gdp_pc_usd * pie / 100 * slice / 100, NA),
+    ident_gap_pct = 100 * (ghe_cur / gghed_pc_usd - 1)
+  )
+
+# ---- 3. Country attributes ----------------------------------------------------------------------
+panel <- panel |>
+  left_join(select(countries, iso3, name, income_group, wb_region), by = "iso3") |>
+  arrange(iso3, year)
+largest_gap <- max(abs(panel$ident_gap_pct), na.rm = TRUE)
+data.frame(
+  `country-years` = nrow(panel),
+  `with all parts` = sum(panel$ok),
+  countries = length(unique(panel$iso3)),
+  `largest gap to GHED's own per person series, %` = signif(largest_gap, 2),
+  check.names = FALSE
+)
+```
+
+We use the last column above to compare the product of the three parts in current US\$ with GHED's own series for government
+health spending per person. The largest gap is a tiny fraction of one per cent, a rounding difference in the published
+values, so the identity holds in the data and not only on paper.
+
+# The decomposition engine
+
+## Country windows, periods and flags
+
+In the next chunk, we do the country-level work. For each country the chunk picks the latest window, splits the change over the
+window into the three parts, splits the window into two halves at its middle year (used by the instructive examples),
+applies the four data flags and names the pattern of change. The pattern rule is plain arithmetic: a country is
+"declining" if spending per person fell over the window, and otherwise named after the largest of the three parts
+(economy-led, budget-led or priority-led). "Health lost priority" means the economy part was positive while the health
+priority part was negative. The same split is then made for each of the three fixed periods, for every country with all
+parts at both ends of the period.
+
+We treat the instructive examples and warning cases as rules, not rankings. An instructive example grew in the top quarter
+of its income group, got at least half of the growth from the size of government and health priority together, grew in
+both halves of its window and carries no data flag. A warning case either spent less per person at the end of its
+window, or saw health priority take away at least half of what the economy added.
+
+```{r engine-countries}
+## Country level: each country's latest window, its decomposition, halves, flags, pattern, example
+## and warning status; then the same decomposition for the three fixed periods.
+# we work only with the country-years that have all three parts
+years_with_parts <- panel |>
+  filter(ok) |>
+  arrange(iso3, year)
+
+# labels of the income groups and regions, in the order the deck uses
+group_label <- setNames(group_labels$label, paste(group_labels$grouping, group_labels$key))
+inc_levels <- c("low", "lower_middle", "upper_middle", "high")
+reg_levels <- c(
+  "East Asia & Pacific", "Europe & Central Asia", "Latin America & Caribbean",
+  "Middle East, North Africa, Afghanistan & Pakistan", "North America", "South Asia",
+  "Sub-Saharan Africa", "not_classified"
+)
+
+# Every window a country could have: an end year up to 2024 and a start year with all parts, at most
+# ten and at least five years earlier
+start_years <- select(years_with_parts, iso3, y0 = year)
+possible_windows <- years_with_parts |>
+  filter(year <= WINDOW_MAX_YEAR) |>
+  select(iso3, y1 = year) |>
+  inner_join(start_years, by = "iso3", relationship = "many-to-many") |>
+  filter(y0 >= YEAR_MIN, y0 >= y1 - WINDOW, y0 <= y1 - MIN_SPAN)
+
+# we take the latest end year, and for it the earliest start year
+window_years <- possible_windows |>
+  group_by(iso3) |>
+  filter(y1 == max(y1)) |>
+  summarise(y0 = min(y0), y1 = first(y1))
+
+# the four series at the start, the middle and the end of a window, ready to join on
+start_values <- years_with_parts |>
+  select(iso3, y0 = year, ghe0 = ghe_real, gdp0 = gdp_real, pie0 = pie, slice0 = slice)
+end_values <- years_with_parts |>
+  select(iso3, y1 = year, ghe1 = ghe_real, gdp1 = gdp_real, pie1 = pie, slice1 = slice)
+middle_values <- years_with_parts |>
+  select(iso3, mid = year, ghe_mid = ghe_real)
+
+# The change over the window split into the three parts, in log points a year; the parts add up to
+# the total. We also split the window at its middle year (rounded half up, as the slide rounds it).
+windows <- window_years |>
+  left_join(start_values, by = c("iso3", "y0")) |>
+  left_join(end_values, by = c("iso3", "y1")) |>
+  mutate(
+    span = y1 - y0,
+    mid = y0 + floor(span / 2 + 0.5),
+    econ = 100 * log(gdp1 / gdp0) / span,
+    budget = 100 * log(pie1 / pie0) / span,
+    priority = 100 * log(slice1 / slice0) / span,
+    total = 100 * log(ghe1 / ghe0) / span
+  ) |>
+  left_join(middle_values, by = c("iso3", "mid")) |>
+  mutate(
+    half1 = 100 * log(ghe_mid / ghe0) / (mid - y0),
+    half2 = 100 * log(ghe1 / ghe_mid) / (y1 - mid)
+  )
+
+# The four data flags inside each window. The year-on-year rules B and S compare consecutive years
+# only; the rules E and L look at the first and the last year.
+window_flags <- years_with_parts |>
+  inner_join(window_years, by = "iso3") |>
+  filter(year >= y0, year <= y1) |>
+  group_by(iso3) |>
+  arrange(year, .by_group = TRUE) |>
+  mutate(
+    log_pie = log(pie),
+    log_slice = log(slice),
+    log_gdp = log(gdp_real),
+    consecutive = year - lag(year) == 1,
+    pie_step = abs(log_pie - lag(log_pie)),
+    slice_step = abs(log_slice - lag(log_slice)),
+    gdp_step = abs(log_gdp - lag(log_gdp)),
+    big_step = pie_step > FLAG_RATIO_STEP | slice_step > FLAG_RATIO_STEP,
+    is_end = year == y0 | year == y1,
+    pie_median = median(pie),
+    slice_median = median(slice),
+    pie_off_median = abs(log(pie / pie_median)),
+    slice_off_median = abs(log(slice / slice_median))
+  ) |>
+  summarise(
+    flag_B = any(consecutive & big_step, na.rm = TRUE),
+    flag_S = any(consecutive & gdp_step > FLAG_GDP_STEP, na.rm = TRUE),
+    flag_E = any(is_end & (pie_off_median > FLAG_END | slice_off_median > FLAG_END)),
+    flag_L = any(is_end & (pie > FLAG_PIE_MAX | ghe_real < FLAG_GHE_MIN)),
+    n_years_in_window = n()
+  )
+
+# One row per country, with or without a window. The pattern is plain arithmetic: declining if the
+# total fell, otherwise named after the largest of the three parts (the first one on a tie).
+country_windows <- countries |>
+  select(iso3, name, income_group, wb_region) |>
+  left_join(windows, by = "iso3") |>
+  left_join(window_flags, by = "iso3") |>
+  arrange(iso3) |>
+  mutate(
+    has_window = !is.na(total),
+    closure = econ + budget + priority - total, # the identity check, about zero
+    flag_letters = paste0(
+      if_else(flag_B, "B ", ""),
+      if_else(flag_S, "S ", ""),
+      if_else(flag_E, "E ", ""),
+      if_else(flag_L, "L", "")
+    ),
+    flag = if_else(has_window, trimws(flag_letters), NA),
+    flagged = has_window & nzchar(flag),
+    note_2024 = has_window & y1 == 2024,
+    note_short = has_window & span < WINDOW,
+    pattern = case_when(
+      total < 0 ~ "Declining",
+      econ >= budget & econ >= priority ~ "Economy-led",
+      budget >= priority ~ "Budget-led",
+      budget < priority ~ "Priority-led"
+    ),
+    lost_priority = has_window & econ > 0 & priority < 0
+  ) |>
+  select(-flag_letters)
+
+# Instructive examples and warning cases are rules applied within each income group
+country_windows <- country_windows |>
+  group_by(income_group) |>
+  mutate(top_quarter = has_window & total >= quantile(total[has_window], 0.75, names = FALSE)) |>
+  ungroup() |>
+  mutate(
+    example = has_window & top_quarter & total > 0 & (budget + priority) >= 0.5 * total &
+      !is.na(half1) & half1 > 0 & half2 > 0 & !flagged,
+    warning_rule = has_window & (total < 0 | (econ > 0 & priority <= -0.5 * econ)),
+    warning = warning_rule & !flagged,
+    inc_lab = unname(group_label[paste("income", income_group)]),
+    reg_lab = unname(group_label[paste("wb_region", wb_region)])
+  )
+
+# The fixed periods: one decomposition per country and period, for every country with all parts at
+# both ends of the period (we use the same pattern rule as above)
+country_periods <- years_with_parts |>
+  select(
+    iso3, income_group, wb_region,
+    y0 = year, gdp0 = gdp_real, pie0 = pie, slice0 = slice, ghe0 = ghe_real
+  ) |>
+  inner_join(PERIODS, by = "y0") |>
+  inner_join(end_values, by = c("iso3", "y1")) |>
+  arrange(period, iso3) |>
+  mutate(
+    econ = 100 * log(gdp1 / gdp0) / (y1 - y0),
+    budget = 100 * log(pie1 / pie0) / (y1 - y0),
+    priority = 100 * log(slice1 / slice0) / (y1 - y0),
+    total = 100 * log(ghe1 / ghe0) / (y1 - y0),
+    pattern = case_when(
+      total < 0 ~ "Declining",
+      econ >= budget & econ >= priority ~ "Economy-led",
+      budget >= priority ~ "Budget-led",
+      budget < priority ~ "Priority-led"
+    ),
+    lost_priority = econ > 0 & priority < 0
+  ) |>
+  select(
+    period, y0, y1, iso3, income_group, wb_region, econ, budget, priority, total, pattern,
+    lost_priority
+  )
+data.frame(
+  countries = nrow(country_windows),
+  `with a window` = sum(country_windows$has_window),
+  `largest closure error` = max(abs(country_windows$closure), na.rm = TRUE),
+  flagged = sum(country_windows$flagged),
+  examples = sum(country_windows$example),
+  `warning cases without a flag` = sum(country_windows$warning),
+  check.names = FALSE
+)
+```
+
+## Groups: the median country and the group as a whole
+
+We use two summaries for a group in the deck. The **median country** is the median of countries' rates, calculated separately for each part; the three part medians therefore need not add up to the median total. The **group as a whole** sums real GDP (GDP per person times population), government spending and government health spending, then divides each sum by the summed population. The identity also holds for these sums, so the parts add up exactly. Because an aggregate needs the same years for every member, the latest-window aggregate uses 2013 and 2023, the window used by most countries, while the latest-window median uses each country's own window. Groups with fewer than eight countries are described but not compared.
+
+For 2000 to 2023, we build trend series of medians and quartiles for all countries with data in each year and for the balanced panel with all parts throughout. We also track health's spending share around the pandemic (2019, 2021 and 2023 for the same countries), count patterns and calculate each low-income country's contribution to group spending.
+
+```{r engine-groups}
+## Group level: medians and aggregates by period and latest window, sensitivity without
+## flagged countries, trends, the pandemic trajectories, pattern counts and each country's
+## share of its income group's change.
+
+# the thirteen groups (world, four income groups, eight regions) and the countries in each
+groups <- bind_rows(
+  tibble(grouping = "world", key = "world", label = "World", N = nrow(countries)),
+  select(group_labels, grouping, key, label, N = n_members)
+) |>
+  arrange(match(key, c("world", inc_levels, reg_levels)))
+membership <- bind_rows(
+  transmute(countries, grouping = "world", key = "world", iso3),
+  transmute(countries, grouping = "income", key = income_group, iso3),
+  transmute(countries, grouping = "wb_region", key = wb_region, iso3)
+)
+flagged_countries <- country_windows$iso3[country_windows$flagged]
+
+# The median country: each part's median taken separately over the group's countries, for the three
+# periods and the latest window ("W"), with all countries and without the flagged ones
+country_rates <- bind_rows(
+  select(country_periods, period, iso3, econ, budget, priority, total),
+  country_windows |>
+    filter(has_window) |>
+    transmute(period = "W", iso3, econ, budget, priority, total)
+)
+rates_for_medians <- bind_rows(
+  mutate(country_rates, sample = "all"),
+  country_rates |>
+    filter(period == "W", !iso3 %in% flagged_countries) |>
+    mutate(sample = "without flagged")
+)
+group_medians <- rates_for_medians |>
+  inner_join(membership, by = "iso3", relationship = "many-to-many") |>
+  group_by(sample, grouping, key, period) |>
+  summarise(
+    med_econ = median(econ),
+    med_budget = median(budget),
+    med_priority = median(priority),
+    med_total = median(total),
+    n_med = n(),
+    .groups = "drop"
+  )
+
+# A group as a whole: real GDP, government spending and government health spending summed over
+# the members, then divided by the summed population (and by each other for the two shares),
+# so the identity holds for the sums. A whole needs the same two years for every member, so
+# the latest window uses 2013 and 2023.
+whole_years <- tibble(
+  period = c("P1", "P2", "P3", "W"),
+  y0 = c(2000, 2010, 2019, 2013),
+  y1 = c(2010, 2019, 2023, 2023)
+)
+money <- years_with_parts |>
+  filter(!is.na(pop)) |>
+  mutate(gdp = gdp_real * pop, gge = gdp * pie / 100, ghe = gge * slice / 100) |>
+  select(iso3, year, pop, gdp, gge, ghe)
+money_start <- rename(money, y0 = year, pop0 = pop, gdp0 = gdp, gge0 = gge, ghe0 = ghe)
+money_end <- rename(money, y1 = year, pop1 = pop, gdp1 = gdp, gge1 = gge, ghe1 = ghe)
+
+# every member with all parts and population at both ends of each period
+members_both_ends <- membership |>
+  cross_join(whole_years) |>
+  inner_join(money_start, by = c("iso3", "y0")) |>
+  inner_join(money_end, by = c("iso3", "y1")) |>
+  arrange(iso3)
+members_for_wholes <- bind_rows(
+  mutate(members_both_ends, sample = "all"),
+  members_both_ends |>
+    filter(period == "W", !iso3 %in% flagged_countries) |>
+    mutate(sample = "without flagged")
+)
+group_wholes <- members_for_wholes |>
+  group_by(sample, grouping, key, period, y0, y1) |>
+  summarise(
+    gdp_start = sum(gdp0) / sum(pop0),
+    pie_start = 100 * sum(gge0) / sum(gdp0),
+    slice_start = 100 * sum(ghe0) / sum(gge0),
+    ghe_start = sum(ghe0) / sum(pop0),
+    gdp_end = sum(gdp1) / sum(pop1),
+    pie_end = 100 * sum(gge1) / sum(gdp1),
+    slice_end = 100 * sum(ghe1) / sum(gge1),
+    ghe_end = sum(ghe1) / sum(pop1),
+    n_agg = n(),
+    .groups = "drop"
+  ) |>
+  mutate(
+    agg_econ = 100 * log(gdp_end / gdp_start) / (y1 - y0),
+    agg_budget = 100 * log(pie_end / pie_start) / (y1 - y0),
+    agg_priority = 100 * log(slice_end / slice_start) / (y1 - y0),
+    agg_total = 100 * log(ghe_end / ghe_start) / (y1 - y0)
+  ) |>
+  select(sample, grouping, key, period, agg_econ, agg_budget, agg_priority, agg_total, n_agg)
+
+# Each group in each fixed period and over the latest window, with every country
+medians_all <- group_medians |>
+  filter(sample == "all") |>
+  select(-sample)
+wholes_all <- group_wholes |>
+  filter(sample == "all") |>
+  select(-sample)
+group_summary <- groups |>
+  cross_join(whole_years) |>
+  left_join(medians_all, by = c("grouping", "key", "period")) |>
+  left_join(wholes_all, by = c("grouping", "key", "period")) |>
+  mutate(
+    years = if_else(
+      period == "W", "Latest window (aggregate 2013 to 2023)", paste0(y0, " to ", y1)
+    ),
+    n_med = coalesce(n_med, 0L),
+    n_agg = coalesce(n_agg, 0L),
+    status = if_else(n_med >= 8, "Carries a comparison",
+      "Fewer than 8 countries: described, not compared"
+    ),
+    agg_closure = agg_econ + agg_budget + agg_priority - agg_total
+  ) |>
+  select(
+    grouping, key, label, N, period, years, med_econ, med_budget, med_priority, med_total,
+    n_med, agg_econ, agg_budget, agg_priority, agg_total, n_agg, status, agg_closure
+  )
+
+# Sensitivity: the latest-window medians and the 2013-2023 wholes without the flagged countries
+medians_without_flagged <- groups |>
+  left_join(
+    filter(group_medians, sample == "without flagged"),
+    by = c("grouping", "key")
+  ) |>
+  mutate(n_med = coalesce(n_med, 0L)) |>
+  select(grouping, key, label, med_econ, med_budget, med_priority, med_total, n_med)
+wholes_without_flagged <- groups |>
+  left_join(
+    filter(group_wholes, sample == "without flagged"),
+    by = c("grouping", "key")
+  ) |>
+  mutate(n_agg = coalesce(n_agg, 0L)) |>
+  select(grouping, key, label, agg_econ, agg_budget, agg_priority, agg_total, n_agg)
+
+# Each country's government health spending in US$ million (2023 prices) in 2013 and 2023, and its
+# share of its income group's change (population is in thousands)
+spending_2013 <- years_with_parts |>
+  filter(year == 2013, !is.na(pop)) |>
+  transmute(iso3, ghe0_musd = ghe_real * pop / 1000, pop0_m = pop / 1000)
+spending_2023 <- years_with_parts |>
+  filter(year == 2023, !is.na(pop)) |>
+  transmute(iso3, ghe1_musd = ghe_real * pop / 1000, pop1_m = pop / 1000)
+contributions <- countries |>
+  select(income_group, iso3, name) |>
+  inner_join(spending_2013, by = "iso3") |>
+  inner_join(spending_2023, by = "iso3") |>
+  arrange(match(income_group, inc_levels), iso3) |>
+  group_by(income_group) |>
+  mutate(
+    share_of_group_change_pct = 100 * (ghe1_musd - ghe0_musd) / sum(ghe1_musd - ghe0_musd),
+    change_pct_of_group_2013 = 100 * (ghe1_musd - ghe0_musd) / sum(ghe0_musd)
+  ) |>
+  ungroup()
+
+# Trends 2000 to 2023: medians and quartiles over all countries with data each year, and the
+# balanced panel (all parts in every year) as a whole and as medians
+study_years <- years_with_parts |>
+  filter(year >= YEAR_MIN, year <= YEAR_MAX)
+years_per_country <- count(study_years, iso3)
+balanced <- years_per_country$iso3[years_per_country$n == length(YEAR_MIN:YEAR_MAX)]
+balanced <- intersect(balanced, years_with_parts$iso3[!is.na(years_with_parts$pop)])
+trend_members <- study_years |>
+  inner_join(membership, by = "iso3", relationship = "many-to-many") |>
+  arrange(iso3)
+trend_all_countries <- trend_members |>
+  group_by(grouping, key, year) |>
+  summarise(
+    med_ghe = median(ghe_real),
+    p25_ghe = quantile(ghe_real, 0.25, names = FALSE),
+    p75_ghe = quantile(ghe_real, 0.75, names = FALSE),
+    n = n(),
+    med_slice = median(slice),
+    p25_slice = quantile(slice, 0.25, names = FALSE),
+    p75_slice = quantile(slice, 0.75, names = FALSE),
+    med_pie = median(pie),
+    med_gdp = median(gdp_real),
+    .groups = "drop"
+  )
+trend_balanced <- trend_members |>
+  filter(iso3 %in% balanced, !is.na(pop)) |>
+  mutate(gdp = gdp_real * pop, gge = gdp * pie / 100, ghe = gge * slice / 100) |>
+  group_by(grouping, key, year) |>
+  summarise(
+    agg_ghe = sum(ghe) / sum(pop),
+    agg_slice = 100 * sum(ghe) / sum(gge),
+    agg_pie = 100 * sum(gge) / sum(gdp),
+    agg_gdp = sum(gdp) / sum(pop),
+    n_bal = n(),
+    med_ghe_bal = median(ghe_real),
+    p25_ghe_bal = quantile(ghe_real, 0.25, names = FALSE),
+    p75_ghe_bal = quantile(ghe_real, 0.75, names = FALSE),
+    .groups = "drop"
+  )
+trends <- groups |>
+  select(grouping, key, label) |>
+  cross_join(tibble(year = YEAR_MIN:YEAR_MAX)) |>
+  left_join(trend_all_countries, by = c("grouping", "key", "year")) |>
+  left_join(trend_balanced, by = c("grouping", "key", "year")) |>
+  mutate(n = coalesce(n, 0L), n_bal = coalesce(n_bal, 0L))
+
+# Health's share around the pandemic: 2019, 2021 and 2023 for the same countries, and five paths
+share_2021 <- years_with_parts |>
+  filter(year == 2021) |>
+  select(iso3, s21 = slice)
+share_2023 <- years_with_parts |>
+  filter(year == 2023) |>
+  select(iso3, s23 = slice)
+pandemic_countries <- years_with_parts |>
+  filter(year == 2019) |>
+  select(iso3, s19 = slice, income_group, wb_region) |>
+  left_join(share_2021, by = "iso3") |>
+  left_join(share_2023, by = "iso3") |>
+  filter(!is.na(s21), !is.na(s23)) |>
+  mutate(
+    d1921 = s21 - s19,
+    d2123 = s23 - s21,
+    d1923 = s23 - s19,
+    state = case_when(
+      d1921 > 0 & d1923 > 0 & s23 >= s21 ~ "Rose and kept rising",
+      d1921 > 0 & d1923 > 0 ~ "Rose, partly reversed, still above 2019",
+      d1921 > 0 ~ "Rose, then fell back to or below 2019",
+      d1923 > 0 ~ "Did not rise by 2021, above 2019 by 2023",
+      .default = "Did not rise, at or below 2019 in 2023"
+    )
+  )
+pandemic_by_group <- pandemic_countries |>
+  inner_join(membership, by = "iso3", relationship = "many-to-many") |>
+  group_by(grouping, key) |>
+  summarise(
+    n = n(),
+    med19 = median(s19),
+    med21 = median(s21),
+    med23 = median(s23),
+    med_d1921 = median(d1921),
+    med_d2123 = median(d2123),
+    med_d1923 = median(d1923),
+    rose = sum(d1921 > 0),
+    above19_in23 = sum(d1923 > 0),
+    kept = sum(d1921 > 0 & d1923 > 0),
+    .groups = "drop"
+  )
+pandemic_groups <- groups |>
+  select(grouping, key, label) |>
+  left_join(pandemic_by_group, by = c("grouping", "key")) |>
+  # a group with no country in the panel gets zero counts; its medians stay empty
+  mutate(across(
+    c(n, rose, above19_in23, kept),
+    \(count) coalesce(count, 0L)
+  ))
+
+# Pattern counts by income group and by region (latest window), and for income groups by period
+pattern_rows <- bind_rows(
+  country_windows |>
+    filter(has_window) |>
+    transmute(period = "W", iso3, pattern, lost_priority),
+  select(country_periods, period, iso3, pattern, lost_priority)
+)
+pattern_by_group <- pattern_rows |>
+  inner_join(membership, by = "iso3", relationship = "many-to-many") |>
+  group_by(period, grouping, key) |>
+  summarise(
+    n = n(),
+    `Economy-led` = sum(pattern == "Economy-led"),
+    `Budget-led` = sum(pattern == "Budget-led"),
+    `Priority-led` = sum(pattern == "Priority-led"),
+    Declining = sum(pattern == "Declining"),
+    lost = sum(lost_priority),
+    .groups = "drop"
+  )
+pattern_counts <- groups |>
+  select(grouping, key, label) |>
+  cross_join(tibble(period = c("W", "P1", "P2", "P3"))) |>
+  left_join(pattern_by_group, by = c("period", "grouping", "key")) |>
+  mutate(across(
+    c(n, `Economy-led`, `Budget-led`, `Priority-led`, Declining, lost),
+    \(count) coalesce(count, 0L)
+  ))
+patterns_income <- pattern_counts |>
+  filter(period == "W", grouping %in% c("world", "income")) |>
+  select(key, label, n, `Economy-led`, `Budget-led`, `Priority-led`, Declining, lost)
+patterns_region <- pattern_counts |>
+  filter(period == "W", grouping %in% c("world", "wb_region")) |>
+  select(key, label, n, `Economy-led`, `Budget-led`, `Priority-led`, Declining, lost)
+patterns_period <- pattern_counts |>
+  filter(period != "W", grouping %in% c("world", "income")) |>
+  arrange(period) |>
+  select(period, key, label, n, `Economy-led`, `Budget-led`, `Priority-led`, Declining, lost)
+data.frame(
+  `group rows` = nrow(group_summary),
+  `largest closure error of a whole` = max(abs(group_summary$agg_closure), na.rm = TRUE),
+  `balanced panel` = length(balanced),
+  `pandemic panel` = nrow(pandemic_countries),
+  check.names = FALSE
+)
+```
+
+## The prescription for 2027 to 2029
+
+In Section 2, we apply one method to every country with IMF projections. Health's share of government spending, *h*, is held at its value at the end of the country's window (2023 for most countries) through 2026. Government spending in national currency is built from IMF projections: GDP times either the IMF's projected expenditure share (the IMF path) or the 2026 share held flat (the flat path). For each year from 2027 to 2029:
+
+- We define the **ceiling** as all the growth in government spending since 2026, the most the health budget could gain;
+- We calculate the **protect amount** as *h* times the ceiling, the increase that keeps health's share where it is and so the least
+  to ask for;
+- We consider **candidates** that raise *h* by the country's own trend over its window (only if the trend is positive) or by fixed
+  steps of +0.25, +0.5 or +0.75 percentage points a year;
+- We call a candidate **admissible** if it lies between the protect amount and the ceiling, and set the **upper ask** at the
+  largest admissible candidate (the protect amount if none is admissible);
+- If government spending does not grow, the method **does not apply**: the question is then the fiscal envelope,
+  not health's priority.
+
+We apply the rules in nominal national currency, the unit in which budgets are set. Each amount is also shown in real terms at 2026 prices, using the IMF GDP deflator rebased to 2026, and in US\$ at each year's IMF exchange rate. Cross-country percentages and medians are real: the real increase as a percentage of the 2026 health budget, and the real increase per person in constant 2026 US\$.
+
+```{r engine-prescription}
+## Section 2 engine: the ceiling, protect amount, candidates and upper ask for
+## every country, path and year 2027-2029.
+BASE_YEAR <- 2026
+ASK_YEARS <- 2027:2029
+CHART_YEARS <- 2024:2029
+SHARE_STEPS <- c(0.25, 0.5, 0.75) # steps in health's share, percentage points per year
+PATHS <- c(imf = "IMF expenditure path", flat = "Flat spending share")
+
+# the IMF series with one row per country and year and one column per series
+weo <- pivot_wider(weo_long, names_from = indicator, values_from = value)
+
+# The base: every country with a window, health's share at the window's end (h), and the share's
+# trend over the window in percentage points a year
+base <- country_windows |>
+  filter(has_window) |>
+  transmute(
+    iso3, name, income_group, wb_region,
+    base_year = y1,
+    h = slice1,
+    trend = (slice1 - slice0) / (y1 - y0),
+    trend_y0 = y0,
+    trend_y1 = y1
+  )
+
+# Each country from 2024 to 2029 with the IMF series; a year the IMF does not give
+# stays empty. We also need the exchange rate (national currency per US$) and the
+# price level (2026 = 1) of each year.
+imf_years <- base |>
+  select(iso3, h) |>
+  cross_join(tibble(year = CHART_YEARS)) |>
+  left_join(weo, by = c("iso3", "year")) |>
+  group_by(iso3) |>
+  mutate(
+    rate_y = NGDP / NGDPD,
+    deflator = NGDP / NGDP_R,
+    p = deflator / deflator[year == BASE_YEAR],
+    rate26 = rate_y[year == BASE_YEAR],
+    share26 = GGX_NGDP[year == BASE_YEAR]
+  ) |>
+  ungroup()
+
+# Government spending on two paths: the IMF's projected expenditure share, or the 2026 share held
+# flat from 2027 on; the health budget at the unchanged share follows from either
+prescription_lines <- bind_rows(
+  mutate(imf_years, variant = "imf", gge_share = GGX_NGDP),
+  mutate(imf_years, variant = "flat", gge_share = if_else(year <= BASE_YEAR, GGX_NGDP, share26))
+) |>
+  mutate(
+    gdp = NGDP,
+    gge = gdp * gge_share / 100,
+    health_protect = gge * h / 100,
+    pop = LP
+  ) |>
+  arrange(iso3, match(variant, names(PATHS)), year) |>
+  select(iso3, variant, year, gdp, gge_share, gge, health_protect, h, rate26, rate_y, p, pop)
+
+# Ceiling, protect amount and the four candidates for each country, path and year. A candidate is
+# admissible if it lies between the protect amount and the ceiling, and the method applies only
+# where government spending grows.
+prescription <- prescription_lines |>
+  group_by(iso3, variant) |>
+  mutate(gge26 = gge[year == BASE_YEAR]) |>
+  ungroup() |>
+  filter(year %in% ASK_YEARS) |>
+  left_join(select(base, iso3, trend), by = "iso3") |>
+  mutate(
+    years_ahead = year - BASE_YEAR, # years since 2026
+    health26 = gge26 * h / 100, # the 2026 health budget
+    d_all = gge - gge26, # ceiling: all new government money to health
+    d_protect = h / 100 * d_all, # protect: health's share held
+    # the candidates raise health's share each year by the own
+    # trend (only if it rose) or a fixed step
+    trend_ok = !is.na(trend) & trend > 0,
+    c_trend = if_else(trend_ok, gge * (h + trend * years_ahead) / 100 - health26, NA),
+    c_025 = gge * (h + SHARE_STEPS[1] * years_ahead) / 100 - health26,
+    c_050 = gge * (h + SHARE_STEPS[2] * years_ahead) / 100 - health26,
+    c_075 = gge * (h + SHARE_STEPS[3] * years_ahead) / 100 - health26,
+    applies = !is.na(d_all) & d_all > 0,
+    adm_trend = applies & !is.na(c_trend) & c_trend >= d_protect - 1e-9 & c_trend <= d_all + 1e-9,
+    adm_025 = applies & !is.na(c_025) & c_025 >= d_protect - 1e-9 & c_025 <= d_all + 1e-9,
+    adm_050 = applies & !is.na(c_050) & c_050 >= d_protect - 1e-9 & c_050 <= d_all + 1e-9,
+    adm_075 = applies & !is.na(c_075) & c_075 >= d_protect - 1e-9 & c_075 <= d_all + 1e-9
+  )
+
+# The upper ask is the largest admissible candidate (the first one on a tie)
+largest_admissible <- prescription |>
+  select(iso3, variant, year,
+    amount_trend = c_trend, amount_s025 = c_025, amount_s050 = c_050, amount_s075 = c_075,
+    adm_trend, adm_s025 = adm_025, adm_s050 = adm_050, adm_s075 = adm_075
+  ) |>
+  pivot_longer(
+    -c(iso3, variant, year),
+    names_to = c(".value", "candidate"), names_sep = "_"
+  ) |>
+  filter(adm) |>
+  group_by(iso3, variant, year) |>
+  slice_max(amount, n = 1, with_ties = FALSE) |>
+  ungroup() |>
+  select(iso3, variant, year, best = candidate, best_amount = amount)
+
+# With nothing admissible the ask is the protect amount; where the method does not
+# apply there is no ask. We also follow health's share to where the ask takes it,
+# and give every amount at 2026 prices.
+prescription <- prescription |>
+  left_join(largest_admissible, by = c("iso3", "variant", "year")) |>
+  mutate(
+    setter = case_when(
+      !applies ~ "not applicable",
+      is.na(best) ~ "none",
+      .default = best
+    ),
+    ask = case_when(
+      setter == "none" ~ d_protect,
+      setter == "not applicable" ~ NA,
+      .default = best_amount
+    ),
+    h_ask = case_when(
+      setter == "trend" ~ h + trend * years_ahead,
+      setter == "s025" ~ h + SHARE_STEPS[1] * years_ahead,
+      setter == "s050" ~ h + SHARE_STEPS[2] * years_ahead,
+      setter == "s075" ~ h + SHARE_STEPS[3] * years_ahead,
+      setter == "none" ~ h
+    ),
+    gge_real = gge / p,
+    d_all_real = gge_real - gge26,
+    d_protect_real = h / 100 * (gge_real - gge26),
+    c_trend_real = if_else(trend_ok, gge_real * (h + trend * years_ahead) / 100 - health26, NA),
+    c_025_real = gge_real * (h + SHARE_STEPS[1] * years_ahead) / 100 - health26,
+    c_050_real = gge_real * (h + SHARE_STEPS[2] * years_ahead) / 100 - health26,
+    c_075_real = gge_real * (h + SHARE_STEPS[3] * years_ahead) / 100 - health26,
+    ask_real = gge_real * h_ask / 100 - health26
+  ) |>
+  left_join(
+    select(base, iso3, name, income_group, wb_region, base_year, trend_y0, trend_y1),
+    by = "iso3"
+  ) |>
+  mutate(
+    has_data = !is.na(gge26) & !is.na(gge),
+    applies = if_else(has_data, applies, NA),
+    setter = if_else(has_data, setter, "no IMF projection")
+  )
+
+# Units: nominal US$ at each year's rate, the real rise in % of the 2026 health budget (and the
+# nominal one), and real US$ per person in constant 2026 US$
+for (amount in c("d_all", "d_protect", "ask", "c_trend", "c_025", "c_050", "c_075")) {
+  nominal <- prescription[[amount]]
+  real <- prescription[[paste0(amount, "_real")]]
+  prescription[[paste0(amount, "_usd")]] <- nominal / prescription$rate_y
+  prescription[[paste0(amount, "_pct_nominal")]] <- 100 * nominal / prescription$health26
+  prescription[[paste0(amount, "_pct")]] <- 100 * real / prescription$health26
+  prescription[[paste0(amount, "_usd_pp")]] <- real / prescription$rate26 / prescription$pop
+}
+
+setter_lab <- c(
+  trend = "Own trend", s025 = "+0.25 a year", s050 = "+0.5 a year", s075 = "+0.75 a year",
+  none = "No admissible increase", "not applicable" = "Does not apply",
+  "no IMF projection" = "No IMF projection"
+)
+prescription <- prescription |>
+  mutate(
+    real_ceiling_pos = d_all_real > 0,
+    ask_share_of_ceiling = if_else(real_ceiling_pos, 100 * ask_real / d_all_real, NA),
+    ask_share_of_ceiling_nominal = 100 * ask / d_all,
+    ask_above_real_ceiling = applies & real_ceiling_pos & ask_real > d_all_real,
+    closure_low = ask - d_protect, # check: zero or more where the method applies
+    closure_high = d_all - ask, # check: zero or more where the method applies
+    setter_label = unname(setter_lab[setter])
+  ) |>
+  arrange(iso3, variant, year)
+
+# Group medians for both paths and every year; the upper ask counts only where the method applies
+prescription_by_group <- prescription |>
+  filter(has_data) |>
+  inner_join(membership, by = "iso3", relationship = "many-to-many") |>
+  group_by(grouping, key, variant, year) |>
+  summarise(
+    n = n(),
+    n_applies = sum(applies),
+    n_not_applies = sum(!applies),
+    med_d_all_pct = median(d_all_pct, na.rm = TRUE),
+    med_d_protect_pct = median(d_protect_pct, na.rm = TRUE),
+    med_ask_pct = median(ask_pct[applies], na.rm = TRUE),
+    med_d_all_usd_pp = median(d_all_usd_pp, na.rm = TRUE),
+    med_d_protect_usd_pp = median(d_protect_usd_pp, na.rm = TRUE),
+    med_ask_usd_pp = median(ask_usd_pp[applies], na.rm = TRUE),
+    med_ask_share_of_ceiling = median(ask_share_of_ceiling[applies], na.rm = TRUE),
+    n_real = sum(!is.na(d_all_pct)),
+    n_real_ceiling_not_pos = sum(!real_ceiling_pos, na.rm = TRUE),
+    n_real_fall_only = sum(applies & !real_ceiling_pos, na.rm = TRUE),
+    n_ask_above_real_ceiling = sum(ask_above_real_ceiling[applies], na.rm = TRUE),
+    set_trend = sum(applies & setter == "trend"),
+    set_025 = sum(applies & setter == "s025"),
+    set_050 = sum(applies & setter == "s050"),
+    set_075 = sum(applies & setter == "s075"),
+    set_none = sum(applies & setter == "none"),
+    .groups = "drop"
+  )
+prescription_groups <- groups |>
+  select(grouping, key, label) |>
+  cross_join(tibble(variant = names(PATHS))) |>
+  cross_join(tibble(year = ASK_YEARS)) |>
+  left_join(prescription_by_group, by = c("grouping", "key", "variant", "year")) |>
+  # a group with no country in a year gets zero counts; its medians stay empty
+  mutate(across(
+    c(n, starts_with("n_"), starts_with("set_")),
+    \(count) coalesce(count, 0L)
+  ))
+
+applying <- filter(prescription, has_data, applies %in% TRUE)
+data.frame(
+  countries = length(unique(prescription$iso3)),
+  `with IMF projections` = length(unique(prescription$iso3[prescription$has_data])),
+  `ask below protect (should be 0)` = sum(applying$closure_low < -1e-6),
+  `ask above ceiling (should be 0)` = sum(applying$closure_high < -1e-6),
+  check.names = FALSE
+)
+```
+
+## From the engine to the slides
+
+Each slide chunk below reads one list of tables, `mine`, which we build here from the engine's objects. The same slide
+chunks are run in the final chunk on the report's own output tables, which carry the same columns, so the check
+compares like with like. The labels in this chunk only name groups and periods; none of them computes anything new.
+
+```{r slide-helpers}
+## The bundle of tables every slide reads, the names of the matching report outputs, the labels the
+## slides print and the country names they use.
+mine <- list(
+  win = country_windows,
+  per = country_periods,
+  grp = group_summary,
+  nf_med = medians_without_flagged,
+  nf_agg = wholes_without_flagged,
+  trend = trends,
+  pand = pandemic_countries,
+  pand_grp = pandemic_groups,
+  pat_inc = patterns_income,
+  pat_reg = patterns_region,
+  pat_per = patterns_period,
+  contrib = contributions,
+  rx = prescription,
+  rx_lines = prescription_lines,
+  rx_grp = prescription_groups
+)
+# the report's tables are plain data frames, so we hand the slides plain data frames too
+mine <- lapply(mine, as.data.frame)
+REF_NAMES <- c(
+  win = "country_window_decomposition",
+  per = "country_period_decomposition",
+  grp = "group_decomposition",
+  nf_med = "group_window_medians_without_flagged",
+  nf_agg = "group_aggregates_2013_2023_without_flagged",
+  trend = "trends_2000_2023",
+  pand = "health_priority_pandemic_countries",
+  pand_grp = "health_priority_pandemic_groups",
+  pat_inc = "patterns_by_income",
+  pat_reg = "patterns_by_region",
+  pat_per = "patterns_by_period_income",
+  contrib = "income_group_contributions_2013_2023",
+  rx = "prescription_country_year",
+  rx_lines = "prescription_lines_2024_2029",
+  rx_grp = "prescription_groups"
+)
+
+INC <- inc_levels
+INC_LABEL <- c(
+  low = "Low income", lower_middle = "Lower middle income", upper_middle = "Upper middle income",
+  high = "High income"
+)
+INC_CODE <- c(low = "Low", lower_middle = "LM", upper_middle = "UM", high = "High")
+REG <- reg_levels[reg_levels != "not_classified"]
+REG_LABEL <- c(
+  "East Asia & Pacific" = "East Asia and Pacific",
+  "Europe & Central Asia" = "Europe and Central Asia",
+  "Latin America & Caribbean" = "Latin America and the Caribbean",
+  "Middle East, North Africa, Afghanistan & Pakistan" =
+    "Middle East, North Africa, Afghanistan and Pakistan",
+  "North America" = "North America",
+  "South Asia" = "South Asia",
+  "Sub-Saharan Africa" = "Sub-Saharan Africa",
+  "Not classified" = "No World Bank region"
+)
+PERIOD_LABEL <- c(P1 = "2000-2010", P2 = "2010-2019", P3 = "2019-2023")
+
+# The country names the slides print: a shorter form for fourteen countries, otherwise the GHED name
+# without its bracket. We sort names without their accents, as the deck does, so Türkiye sits among
+# the T's whatever the computer's locale.
+SHORT_NAME <- c(
+  PSE = "occupied Palestinian territory", VCT = "St. Vincent and the Grenadines",
+  NLD = "Netherlands", FSM = "Micronesia", LAO = "Lao PDR", GBR = "United Kingdom",
+  USA = "United States", COD = "DR Congo", TZA = "Tanzania", SYR = "Syria", KOR = "Korea, Rep.",
+  PRK = "Korea, DPR", MDA = "Moldova", ARE = "United Arab Emirates"
+)
+short_names <- countries |>
+  mutate(
+    name_without_bracket = trimws(sub("\\s*\\(.*\\)\\s*$", "", name)),
+    short = coalesce(unname(SHORT_NAME[iso3]), name_without_bracket),
+    sort_name = tolower(chartr("ôüéçãíáóÔÜÉ", "ouecaiaooue", short))
+  ) |>
+  select(iso3, short, sort_name)
+```
+
+# The deck
+
+## Cover. What accounted for the change in government health spending, 2000 to 2023
+
+*Kicker on the slide: Global decomposition.*
+
+On the cover, we show the title, a subtitle naming the three parts, and the questions the deck answers: how much of the
+change in government health spending per person came from the economy, from a larger government budget and from a
+larger share of the budget for health; where health lost ground; and how much the health budget could ask for in 2027
+to 2029. The cover's count of countries with a window and its data sources come from the chunks that follow, so no
+computation sits here.
+
+# Section 1. The decomposition, 2000-2023
+
+## Slide 1. Three parts of government health spending per person
+
+*Question on the slide: Where can more public money for health come from?*
+
+On the first slide, we set out the identity and fill in the three parts with world levels. The countries with all three parts in
+every year from 2000 to 2023 are taken as one block: summed real GDP over summed population gives GDP per person, summed
+government spending over summed GDP gives the size of government, and summed government health spending over summed
+government spending gives health's share. The product of the three equals government health spending per person, in
+2000 and in 2023.
+
+We use the chart to show the change from 2013 to 2023 for every country with all parts and population in both years, again as one
+block, and split the change into the three parts. The bars are stacked as a waterfall: each part starts where the previous one
+ends, and the last bar is the total. The shares under the chart divide the economy part and the health priority part by
+the total.
+
+We show two sets of countries on the slide. The levels need every year from 2000 to 2023 and the change needs only 2013 and
+2023, so the change covers more countries than the levels.
+
+```{r slide-01-identity, results = "asis", fig.height = 4.6}
+## Slide 1: the identity in levels for the balanced panel as a whole (2000, 2023), and the world's
+## 2013-2023 change split into the three parts.
+# the balanced panel as a whole in 2000 and 2023
+world_trend <- filter(mine$trend, key == "world")
+levels_2000 <- filter(world_trend, year == 2000)
+levels_2023 <- filter(world_trend, year == 2023)
+
+# the world as a whole from 2013 to 2023: the three parts and the total, in that order
+world <- filter(mine$grp, key == "world", period == "W")
+parts <- c(world$agg_econ, world$agg_budget, world$agg_priority, world$agg_total)
+
+identity_levels <- tibble(
+  Part = c(
+    "GDP per person", "Government spending, % of GDP", "Health, % of government spending",
+    "Government health spending per person"
+  ),
+  `2000` = c(
+    dollars(levels_2000$agg_gdp), share_pct(levels_2000$agg_pie),
+    share_pct(levels_2000$agg_slice), dollars(levels_2000$agg_ghe)
+  ),
+  `2023` = c(
+    dollars(levels_2023$agg_gdp), share_pct(levels_2023$agg_pie),
+    share_pct(levels_2023$agg_slice), dollars(levels_2023$agg_ghe)
+  )
+)
+world_change <- tibble(
+  Part = unname(PART_LABEL),
+  `Log points a year` = signed(parts)
+)
+slide_counts <- tibble(
+  Item = c(
+    "Countries with all parts in every year, 2000-2023",
+    "Countries with all parts in 2013 and 2023",
+    "Share of the change from the economy",
+    "Share of the change from health priority"
+  ),
+  Value = c(
+    levels_2000$n_bal,
+    world$n_agg,
+    whole_pct(100 * world$agg_econ / world$agg_total),
+    whole_pct(100 * world$agg_priority / world$agg_total)
+  )
+)
+tables <- list(
+  "The identity in levels, countries with all parts in every year, as a whole (constant 2023 US$)" =
+    identity_levels,
+  "The world's change, 2013-2023, as a whole (log points a year)" = world_change,
+  "Counts and shares printed on the slide" = slide_counts
+)
+show_tables(tables)
+
+# The waterfall: each part starts where the previous one ends, and the last bar is the total
+steps <- tibble(
+  x = 1:4,
+  part = factor(unname(PART_LABEL), levels = unname(PART_LABEL)),
+  from = c(0, parts[1], parts[1] + parts[2], 0),
+  to = c(parts[1], parts[1] + parts[2], parts[1] + parts[2] + parts[3], parts[4]),
+  bottom = pmin(from, to),
+  top = pmax(from, to),
+  label = signed(parts)
+)
+ggplot(steps) +
+  geom_rect(aes(xmin = x - 0.35, xmax = x + 0.35, ymin = bottom, ymax = top, fill = part)) +
+  geom_text(aes(x = x, y = top + 0.08, label = label),
+    vjust = 0, size = 3.6, fontface = "bold"
+  ) +
+  scale_x_continuous(breaks = 1:4, labels = levels(steps$part)) +
+  scale_fill_manual(values = PART_FILL, guide = "none") +
+  coord_cartesian(ylim = c(0, 3)) +
+  labs(
+    x = NULL, y = "Log points a year", title = "The world's change, 2013-2023, as a whole",
+    subtitle = paste(
+      world$n_agg, "countries with all parts in 2013 and 2023; the three parts add up to the total"
+    )
+  )
+```
+
+## Slide 2. Real government health spending per person, 2000 to 2023
+
+*Question on the slide: How much did government health spending per person grow?*
+
+We follow real government health spending per person from 2000 to 2023 in two ways. The solid line is the
+median of the balanced panel, the countries with all three parts in every year, with the middle half of those countries
+shaded. The dashed line takes the same countries as one block: their summed spending over their summed population.
+Keeping one fixed set of countries means the lines move only because spending moved, not because countries entered or
+left the data. The note under the chart gives the median of all countries with data in a given year for comparison.
+
+We use a different statistic for the "median country grew ... log points a year" in the lead. Each country's 23-year rate is the
+year-weighted average of its three period rates (10, 9 and 4 years), which is exact for log points, and the median is
+taken across those countries. The panel on the right of the slide, repeated in the second table, gives the median by
+income group; the high-to-low ratio divides the high-income group's spending per person by the low-income group's, both
+as wholes.
+
+We use the median and the whole to answer different questions. The whole follows the large high-income spenders, while the
+median follows a typical country, so the gap between the two lines is itself part of the finding.
+
+```{r slide-02-trend, results = "asis"}
+## Slide 2: the trend 2000-2023 (median, middle half, as a whole), the median country's 23-year
+## rate, income-group medians and the high-to-low ratio.
+world_trend <- mine$trend |>
+  filter(key == "world") |>
+  arrange(year)
+world_2000 <- filter(world_trend, year == 2000)
+world_2019 <- filter(world_trend, year == 2019)
+world_2020 <- filter(world_trend, year == 2020)
+world_2022 <- filter(world_trend, year == 2022)
+world_2023 <- filter(world_trend, year == 2023)
+
+# Each country's 23-year rate is the year-weighted average of its three period rates (10, 9 and 4
+# years), which is exact for log points; we take the countries with all three periods
+country_rates <- mine$per |>
+  select(iso3, period, total) |>
+  pivot_wider(names_from = period, values_from = total) |>
+  filter(!is.na(P1), !is.na(P2), !is.na(P3)) |>
+  mutate(rate_23 = (10 * P1 + 9 * P2 + 4 * P3) / 23) |>
+  left_join(select(mine$win, iso3, income_group), by = "iso3")
+low_rates <- filter(country_rates, income_group == "low")
+median_rate <- median(country_rates$rate_23)
+
+# the income groups in 2000 and 2023: the median country, and the high-to-low ratio of the wholes
+income_trend <- mine$trend |>
+  filter(grouping == "income") |>
+  arrange(match(key, INC))
+income_2000 <- filter(income_trend, year == 2000)
+income_2023 <- filter(income_trend, year == 2023)
+ratio_2000 <- income_2000$agg_ghe[income_2000$key == "high"] /
+  income_2000$agg_ghe[income_2000$key == "low"]
+ratio_2023 <- income_2023$agg_ghe[income_2023$key == "high"] /
+  income_2023$agg_ghe[income_2023$key == "low"]
+
+world_table <- tibble(
+  Item = c(
+    "Countries with data in every year (balanced panel)", "Median, 2000", "Median, 2023",
+    "Median country's change, 2000-2023, log points a year", "As a whole, 2000", "As a whole, 2023",
+    "Countries spending less per person in 2023 than in 2000", "As a whole, 2019",
+    "As a whole, 2020", "Median, 2022", "All countries with data: median, 2000",
+    "All countries with data: countries, 2000", "All countries with data: median, 2023",
+    "All countries with data: countries, 2023"
+  ),
+  Value = c(
+    world_2000$n_bal,
+    dollars(world_2000$med_ghe_bal),
+    dollars(world_2023$med_ghe_bal),
+    one_decimal(abs(median_rate)),
+    dollars(world_2000$agg_ghe),
+    dollars(world_2023$agg_ghe),
+    sum(country_rates$rate_23 < 0),
+    dollars(world_2019$agg_ghe),
+    dollars(world_2020$agg_ghe),
+    dollars(world_2022$med_ghe_bal),
+    dollars(world_2000$med_ghe),
+    world_2000$n,
+    dollars(world_2023$med_ghe),
+    world_2023$n
+  )
+)
+income_table <- tibble(
+  `Income group` = c(
+    unname(INC_LABEL),
+    "High to low, groups as a whole",
+    "Low income: spent less in 2023 than in 2000"
+  ),
+  `2000` = c(dollars(income_2000$med_ghe), paste(round(ratio_2000), "to one"), ""),
+  `2023` = c(
+    dollars(income_2023$med_ghe),
+    paste(round(ratio_2023), "to one"),
+    paste(sum(low_rates$rate_23 < 0), "of", nrow(low_rates))
+  )
+)
+tables <- list(
+  "World, constant 2023 US$ per person" = world_table,
+  "Income groups" = income_table
+)
+show_tables(tables)
+
+# the two lines end with their 2023 value
+line_ends <- tibble(
+  year = 2023,
+  y = c(world_2023$agg_ghe, world_2023$med_ghe_bal),
+  label = c(
+    paste("As a whole", dollars(world_2023$agg_ghe)),
+    paste("Median", dollars(world_2023$med_ghe_bal))
+  )
+)
+ggplot(world_trend, aes(year)) +
+  geom_ribbon(aes(ymin = p25_ghe_bal, ymax = p75_ghe_bal), fill = WB[["tint"]]) +
+  geom_line(aes(y = agg_ghe), colour = "black", linewidth = 0.8, linetype = "dashed") +
+  geom_line(aes(y = med_ghe_bal), colour = WB[["navy"]], linewidth = 1.3) +
+  geom_text(
+    data = line_ends, aes(x = year + 0.4, y = y, label = label),
+    hjust = 0, size = 3.4, fontface = "bold"
+  ) +
+  annotate("text",
+    x = 2000.5, y = 16, label = "Shaded: middle half of countries (25th to 75th percentile)",
+    hjust = 0, size = 3.2, colour = WB[["slate"]]
+  ) +
+  scale_y_log10(
+    breaks = c(10, 20, 50, 100, 200, 500, 1000, 2000), limits = c(10, 2000),
+    labels = scales::label_comma(prefix = "US$")
+  ) +
+  scale_x_continuous(
+    breaks = c(2000, 2005, 2010, 2015, 2020, 2023), expand = expansion(add = c(0.3, 7))
+  ) +
+  labs(
+    x = NULL, y = "Constant 2023 US$ per person, log scale",
+    title = paste0("World, ", world_2000$n_bal, " countries with data in every year")
+  )
+```
+
+## Slide 3. Growth and its three parts by period, world
+
+*Question on the slide: Is the economy still carrying the growth?*
+
+We compare three fixed periods, 2000-2010, 2010-2019 and 2019-2023. The chart takes the world as one block in
+each period (every country with all parts and population at both ends of the period), so its three parts add up to the
+total. The table gives the median country, where each part's median is taken across countries on its own, so the part
+medians need not add up to the median total. The count of economy-led countries in each period follows the pattern rule
+explained under slide 7.
+
+We calculate each period rate as an average over the years in the period. The last period is only four years long and includes the
+pandemic jump and its partial reversal, so one unusual year weighs more in its rates than in the two longer periods. A falling economy part in the
+median country is the main reading of the slide; whether the budget parts can keep growth going without the economy is
+the question the rest of Section 1 takes up.
+
+```{r slide-03-periods, results = "asis", fig.height = 4.4}
+## Slide 3: the world by fixed period, as a whole (chart) and as the median country (table), and the
+## count of economy-led countries per period.
+world_periods <- mine$grp |>
+  filter(key == "world", period %in% c("P1", "P2", "P3")) |>
+  arrange(period)
+world_patterns <- mine$pat_per |>
+  filter(key == "world") |>
+  arrange(period)
+
+median_country <- tibble(
+  Period = unname(PERIOD_LABEL),
+  Economy = signed(world_periods$med_econ),
+  `Size of government` = signed(world_periods$med_budget),
+  `Health priority` = signed(world_periods$med_priority),
+  Total = signed(world_periods$med_total),
+  n = world_periods$n_med
+)
+world_whole <- tibble(
+  Period = unname(PERIOD_LABEL),
+  Economy = signed(world_periods$agg_econ),
+  `Size of government` = signed(world_periods$agg_budget),
+  `Health priority` = signed(world_periods$agg_priority),
+  Total = signed(world_periods$agg_total),
+  Countries = world_periods$n_agg
+)
+economy_led <- tibble(
+  Period = unname(PERIOD_LABEL),
+  `Economy-led` = world_patterns$`Economy-led`,
+  Countries = world_patterns$n
+)
+tables <- list(
+  "Median country, log points a year (each part's median taken separately)" = median_country,
+  "World as a whole, log points a year (the parts add up)" = world_whole,
+  "Economy-led countries by period" = economy_led
+)
+show_tables(tables)
+
+whole <- tibble(
+  label = paste0(PERIOD_LABEL, "\n", world_periods$n_agg, " countries"),
+  econ = world_periods$agg_econ,
+  budget = world_periods$agg_budget,
+  priority = world_periods$agg_priority,
+  total = world_periods$agg_total
+)
+plot_parts(whole, "label") +
+  labs(title = "World as a whole: the three parts add up to the total")
+```
+
+## Slide 4. Growth and its three parts by income group, latest ten-year window
+
+*Question on the slide: Which income groups grew, and from which part?*
+
+We repeat the split for the four income groups over the latest window. The table reports the median country, using each country's own window (2013-2023 for most). The chart reports each group as a whole for the fixed years 2013 and 2023, because an aggregate needs the same years for every member. The third table shows the largest member's share of group government health spending in 2023, calculated as spending per person times population.
+
+Large members shape a group taken as a whole: India in lower middle income, China in upper middle income and the United
+States in high income. A whole that grows fast can therefore mostly reflect one country, and a whole that falls can hide
+a typical country that grew, which is what slide 6 shows for low income.
+
+```{r slide-04-income, results = "asis", fig.height = 4.8}
+## Slide 4: income groups over the latest window, the median country (table) and each group as a
+## whole 2013-2023 (chart), and the largest member's share of each group's spending.
+income_rows <- mine$grp |>
+  filter(period == "W", key %in% c("world", INC)) |>
+  arrange(match(key, c("world", INC)))
+group_names <- c("World", unname(INC_LABEL))
+
+# the largest member of each income group and its share of the group's spending in 2023
+largest <- mine$contrib |>
+  filter(income_group %in% INC) |>
+  group_by(income_group) |>
+  mutate(share = 100 * ghe1_musd / sum(ghe1_musd)) |>
+  slice_max(ghe1_musd, n = 1, with_ties = FALSE) |>
+  ungroup() |>
+  arrange(match(income_group, INC)) |>
+  left_join(short_names, by = "iso3") |>
+  transmute(
+    `Income group` = unname(INC_LABEL[income_group]),
+    `Largest member` = short,
+    `Share of the group's spending, 2023` = whole_pct(share)
+  )
+
+median_country <- tibble(
+  `Income group` = group_names,
+  Economy = signed(income_rows$med_econ),
+  `Size of government` = signed(income_rows$med_budget),
+  `Health priority` = signed(income_rows$med_priority),
+  Total = signed(income_rows$med_total),
+  n = income_rows$n_med
+)
+group_whole <- tibble(
+  `Income group` = group_names,
+  Economy = signed(income_rows$agg_econ),
+  `Size of government` = signed(income_rows$agg_budget),
+  `Health priority` = signed(income_rows$agg_priority),
+  Total = signed(income_rows$agg_total),
+  Countries = income_rows$n_agg
+)
+tables <- list(
+  "Median country, own latest window, log points a year (parts taken separately)" = median_country,
+  "Group as a whole, 2013-2023, log points a year (the parts add up)" = group_whole,
+  "Largest member of each income group" = largest
+)
+show_tables(tables)
+
+whole <- tibble(
+  label = paste0(group_names, "\n", income_rows$n_agg, " countries"),
+  econ = income_rows$agg_econ,
+  budget = income_rows$agg_budget,
+  priority = income_rows$agg_priority,
+  total = income_rows$agg_total
+)
+plot_parts(whole, "label", xlab = "Average annual change, log points, 2013-2023") +
+  labs(title = "Each income group as a whole, 2013-2023: the three parts add up")
+```
+
+## Slide 5. Growth and its three parts by World Bank region, latest ten-year window
+
+*Question on the slide: Where did growth come from, region by region?*
+
+We put the seven World Bank regions in one heat table: the median country on the left (own window) and the
+region as a whole on the right (2013-2023), each with the three parts and the total. Blue cells added to spending per
+person and rust cells subtracted, darker for larger values. North America (two countries) and South Asia (six) have
+fewer than eight countries, so the two regions are shown but not compared, in paler rows. The bar chart on the right of
+the slide, given here as the second table, counts the countries in each region whose spending per person fell over
+their window.
+
+A region's median and its whole can point in different directions, most clearly in East Asia and Pacific, where the
+economy accounts for most of the whole's growth while health priority adds more in the median country.
+
+```{r slide-05-regions, results = "asis", fig.height = 5}
+## Slide 5: World Bank regions over the latest window, median country and region as a whole, and the
+## share of countries whose spending per person fell.
+region_rows <- mine$grp |>
+  filter(period == "W", key %in% c("world", REG)) |>
+  arrange(match(key, c("world", REG)))
+region_names <- c("World", unname(REG_LABEL[REG]))
+# regions with fewer than eight countries are described, not compared
+compared <- grepl("^Carries", region_rows$status)
+
+heat <- tibble(
+  Region = region_names,
+  Countries = region_rows$n_med,
+  Compared = if_else(compared, "yes", "described only"),
+  `Median: Economy` = signed(region_rows$med_econ),
+  `Median: Size of government` = signed(region_rows$med_budget),
+  `Median: Health priority` = signed(region_rows$med_priority),
+  `Median: Total` = signed(region_rows$med_total),
+  `Whole: Economy` = signed(region_rows$agg_econ),
+  `Whole: Size of government` = signed(region_rows$agg_budget),
+  `Whole: Health priority` = signed(region_rows$agg_priority),
+  `Whole: Total` = signed(region_rows$agg_total)
+)
+
+# countries whose spending per person fell over their window, the highest share first
+fell <- mine$pat_reg |>
+  filter(key %in% REG) |>
+  arrange(match(key, REG)) |>
+  mutate(pct = round(100 * Declining / n)) |>
+  arrange(desc(pct), desc(n))
+fell_table <- tibble(
+  Region = unname(REG_LABEL[fell$key]),
+  Declining = paste(fell$Declining, "of", fell$n),
+  Share = paste0(fell$pct, "%")
+)
+
+tables <- list(
+  "Log points a year: median country (own window) and region as a whole (2013-2023)" = heat,
+  "Countries whose spending per person fell over their window" = fell_table
+)
+show_tables(tables)
+
+# The heat table as a chart: one tile per region, block and part. The colour
+# scale stops at 4 log points either way.
+heat_long <- region_rows |>
+  mutate(
+    region = factor(region_names, levels = rev(region_names)),
+    compared = compared
+  ) |>
+  select(
+    region, compared, med_econ, med_budget, med_priority, med_total,
+    agg_econ, agg_budget, agg_priority, agg_total
+  ) |>
+  pivot_longer(
+    -c(region, compared),
+    names_to = c("block", "part"), names_sep = "_", values_to = "value"
+  ) |>
+  mutate(
+    block = if_else(block == "med", "Median country", "Region as a whole, 2013-2023"),
+    part = factor(unname(PART_LABEL[part]), levels = unname(PART_LABEL)),
+    fill = pmin(pmax(value, -4), 4),
+    label = signed(value)
+  )
+ggplot(heat_long, aes(x = part, y = region)) +
+  geom_tile(aes(fill = fill, alpha = compared), colour = "white", linewidth = 0.8) +
+  geom_text(aes(label = label), size = 3.2) +
+  facet_wrap(~block) +
+  scale_fill_gradient2(
+    low = WB[["rust"]], mid = "white", high = WB[["blue"]], midpoint = 0, guide = "none"
+  ) +
+  scale_alpha_manual(values = c(`TRUE` = 1, `FALSE` = 0.4), guide = "none") +
+  scale_x_discrete(labels = c("Economy", "Govt size", "Priority", "Total")) +
+  labs(
+    x = NULL, y = NULL, title = "Log points a year, by World Bank region",
+    caption = paste(
+      "Blue added to spending per person, rust subtracted.",
+      "Paler rows: fewer than 8 countries, shown, not compared.",
+      sep = "\n"
+    )
+  ) +
+  theme(panel.grid = element_blank())
+```
+
+## Slide 6. Low-income countries: change in spending, 2013 to 2023
+
+*Question on the slide: Why do the typical low-income country and the group as a whole disagree?*
+
+We find that the low-income median country grew, while the group as a whole fell. Each bar shows one country's change in annual government health spending from 2013 to 2023, in US\$ million at 2023 prices (spending per person times population, for countries with all parts and population in both years). Rust marks countries whose series carries a data flag. Group spending grew more slowly than population, so spending per person for the group as a whole fell; three flagged countries (Syria, Sudan and Yemen) account for most of the loss.
+
+We use the statistics table to show both summaries with and without the flagged countries. Both statements on the slide are
+true at once: the typical low-income government raised spending per person, while the group's combined spending per
+person fell. A few large losses in money terms can outweigh many small gains.
+
+```{r slide-06-low-income, results = "asis", fig.height = 6.4}
+## Slide 6: each low-income country's change in annual spending 2013-2023 (US$
+## million, 2023 prices), the group's spending and population, and the median and
+## whole with and without flagged countries.
+low_income <- filter(mine$contrib, income_group == "low")
+spend_2013 <- sum(low_income$ghe0_musd)
+spend_2023 <- sum(low_income$ghe1_musd)
+pop_2013 <- sum(low_income$pop0_m)
+pop_2023 <- sum(low_income$pop1_m)
+
+# each country's change, smallest first, printed whole with its sign
+low <- low_income |>
+  left_join(short_names, by = "iso3") |>
+  mutate(
+    change = ghe1_musd - ghe0_musd,
+    rounded_change = round(change),
+    change_label = scales::comma(change, accuracy = 1, style_positive = "plus")
+  ) |>
+  arrange(change)
+gains <- low |>
+  filter(rounded_change > 0) |>
+  arrange(desc(rounded_change))
+# Syria, Sudan and Yemen: their spending in 2013 and 2023, and what the three lost together
+three <- low |>
+  filter(iso3 %in% c("SYR", "SDN", "YEM")) |>
+  mutate(
+    printed_2013 = scales::comma(ghe0_musd, accuracy = 1),
+    printed_2023 = scales::comma(ghe1_musd, accuracy = 1),
+    range = paste(printed_2013, "to", printed_2023)
+  )
+lost_by_three <- -sum(three$change)
+
+# countries whose window carries a data flag
+flagged <- mine$win |>
+  filter(!is.na(total), !is.na(flag), nzchar(flag)) |>
+  pull(iso3)
+
+# the median country and the group as a whole, with and without the flagged countries
+low_all <- filter(mine$grp, key == "low", period == "W")
+low_median_no_flag <- filter(mine$nf_med, key == "low")
+low_whole_no_flag <- filter(mine$nf_agg, key == "low")
+
+group_table <- tibble(
+  Item = c(
+    "Countries", "Spending, US$ million, 2013", "Spending, US$ million, 2023", "Change in spending",
+    "Population, million, 2013", "Population, million, 2023", "Change in population",
+    "Spending lost by Syria, Sudan and Yemen, US$ million", "Syria, US$ million, 2013 and 2023",
+    "Sudan, US$ million, 2013 and 2023", "Yemen, US$ million, 2013 and 2023", "Largest gains"
+  ),
+  Value = c(
+    nrow(low),
+    scales::comma(spend_2013, accuracy = 1),
+    scales::comma(spend_2023, accuracy = 1),
+    paste0("+", round(100 * (spend_2023 / spend_2013 - 1)), "%"),
+    scales::comma(pop_2013, accuracy = 1),
+    scales::comma(pop_2023, accuracy = 1),
+    paste0("+", round(100 * (pop_2023 / pop_2013 - 1)), "%"),
+    scales::comma(lost_by_three, accuracy = 1),
+    three$range[three$iso3 == "SYR"],
+    three$range[three$iso3 == "SDN"],
+    three$range[three$iso3 == "YEM"],
+    knitr::combine_words(gains$short[1:4], oxford_comma = FALSE)
+  )
+)
+two_statistics <- tibble(
+  Statistic = c(
+    "Median country", "Group as a whole", "Median, without flagged countries",
+    "As a whole, without flagged countries"
+  ),
+  Countries = c(low_all$n_med, low_all$n_agg, low_median_no_flag$n_med, low_whole_no_flag$n_agg),
+  `Log points a year` = signed(c(
+    low_all$med_total, low_all$agg_total, low_median_no_flag$med_total, low_whole_no_flag$agg_total
+  ))
+)
+by_country <- tibble(
+  Country = low$short,
+  Change = low$change_label,
+  Flag = if_else(low$iso3 %in% flagged, "flagged", "")
+)
+tables <- list(
+  "The low-income group, 2013 and 2023" = group_table,
+  "Two statistics, with and without flagged countries (low income, latest window)" = two_statistics,
+  "Change in annual spending by country, US$ million at 2023 prices" = by_country
+)
+show_tables(tables)
+
+low_chart <- low |>
+  mutate(
+    country = factor(short, levels = rev(short)),
+    flag_status = if_else(iso3 %in% flagged, "Series carries a data flag", "No data flag"),
+    label_hjust = if_else(change < 0, 1.1, -0.1)
+  )
+ggplot(low_chart, aes(x = change, y = country, fill = flag_status)) +
+  geom_col(width = 0.7) +
+  geom_vline(xintercept = 0, colour = "black", linewidth = 0.4) +
+  geom_text(aes(label = change_label, hjust = label_hjust), size = 3) +
+  scale_fill_manual(
+    values = c("No data flag" = WB[["blue"]], "Series carries a data flag" = WB[["rust"]])
+  ) +
+  scale_x_continuous(
+    limits = c(-650, 450), breaks = seq(-600, 400, 200),
+    labels = scales::label_number(style_positive = "plus")
+  ) +
+  labs(
+    x = "Change in annual spending, US$ million at 2023 prices", y = NULL,
+    title = paste(
+      "The", nrow(low), "low-income countries with all parts and population in 2013 and 2023"
+    )
+  )
+```
+
+## Slide 7. Four patterns of change, latest ten-year window and three periods
+
+*Question on the slide: Did countries grow through the economy or through the budget?*
+
+We assign each country one of four pattern names. A country is declining if spending per person fell over the window;
+otherwise the pattern is named after the largest of the three parts: economy-led, budget-led (size of government) or
+priority-led (health's share). The names describe the arithmetic, not a cause. The first table counts the patterns over
+the latest window by income group, the second does the same for the world in each fixed period, and the third follows
+countries from 2010-2019 into 2019-2023.
+
+We find that countries change pattern often between periods, so a pattern says more about a decade than about a country's lasting
+character. Budget-led and priority-led countries together outnumber the economy-led ones over the latest window.
+
+```{r slide-07-patterns, results = "asis", fig.height = 4.6}
+## Slide 7: pattern counts by income group (latest window) and by period (world), and how often a
+## country's pattern changed between 2010-2019 and 2019-2023.
+PATTERNS <- c("Economy-led", "Budget-led", "Priority-led", "Declining")
+by_income <- mine$pat_inc |>
+  filter(key %in% c("world", INC)) |>
+  arrange(match(key, c("world", INC)))
+world_by_period <- mine$pat_per |>
+  filter(key == "world") |>
+  arrange(period)
+# the three periods, then the latest window
+by_period <- bind_rows(world_by_period, by_income[1, ]) |>
+  select(n, all_of(PATTERNS))
+
+# countries with a 2010-2019 and a 2019-2023 decomposition, and
+# the pattern of each in the two periods
+patterns_2010s <- mine$per |>
+  filter(period == "P2") |>
+  select(iso3, pattern_2010s = pattern)
+patterns_pandemic <- mine$per |>
+  filter(period == "P3") |>
+  select(iso3, pattern_pandemic = pattern)
+moved <- inner_join(patterns_2010s, patterns_pandemic, by = "iso3")
+europe <- filter(mine$pat_reg, key == "Europe & Central Asia")
+africa <- filter(mine$pat_reg, key == "Sub-Saharan Africa")
+world <- by_income[1, ]
+
+income_table <- tibble(
+  Group = c("World", unname(INC_LABEL)),
+  n = by_income$n,
+  `Economy-led` = by_income$`Economy-led`,
+  `Budget-led` = by_income$`Budget-led`,
+  `Priority-led` = by_income$`Priority-led`,
+  Declining = by_income$Declining,
+  `Share declining` = c("", whole_pct(100 * by_income$Declining[-1] / by_income$n[-1]))
+)
+period_table <- tibble(
+  Group = c(unname(PERIOD_LABEL), "Latest window"),
+  n = by_period$n,
+  `Economy-led` = by_period$`Economy-led`,
+  `Budget-led` = by_period$`Budget-led`,
+  `Priority-led` = by_period$`Priority-led`,
+  Declining = by_period$Declining
+)
+movement_table <- tibble(
+  Item = c(
+    "Countries with both 2010-2019 and 2019-2023", "Changed pattern", "Economy-led in 2010-2019",
+    "Still economy-led in 2019-2023", "Budget-led or priority-led, latest window",
+    "Economy-led, latest window", "Europe and Central Asia: economy-led",
+    "Sub-Saharan Africa: declining"
+  ),
+  Value = c(
+    nrow(moved),
+    sum(moved$pattern_2010s != moved$pattern_pandemic),
+    sum(moved$pattern_2010s == "Economy-led"),
+    sum(moved$pattern_2010s == "Economy-led" & moved$pattern_pandemic == "Economy-led"),
+    world$`Budget-led` + world$`Priority-led`,
+    world$`Economy-led`,
+    paste(europe$`Economy-led`, "of", europe$n),
+    paste(africa$Declining, "of", africa$n)
+  )
+)
+tables <- list(
+  "Patterns by income group, latest window (countries)" = income_table,
+  "Patterns by period, world (countries)" = period_table,
+  "Movement between periods and other counts on the slide" = movement_table
+)
+show_tables(tables)
+
+# one bar per group, split into the four patterns as shares of the group's countries
+group_order <- c("World", unname(INC_LABEL), unname(PERIOD_LABEL), "Latest window")
+shares <- bind_rows(
+  mutate(
+    by_income,
+    panel = "By income group, latest window",
+    group = c("World", unname(INC_LABEL))
+  ),
+  mutate(
+    by_period,
+    panel = "World, by period",
+    group = c(unname(PERIOD_LABEL), "Latest window")
+  )
+) |>
+  pivot_longer(all_of(PATTERNS), names_to = "pattern", values_to = "count") |>
+  mutate(
+    pattern = factor(pattern, levels = rev(PATTERNS)),
+    group = factor(group, levels = rev(group_order)),
+    # we write the count on segments of four countries or more, in black on the light blue
+    label = if_else(count >= 4, as.character(count), ""),
+    label_colour = if_else(pattern == "Budget-led", "black", "white")
+  )
+ggplot(shares, aes(x = 100 * count / n, y = group, fill = pattern)) +
+  geom_col(width = 0.7) +
+  geom_text(
+    aes(label = label, colour = label_colour, group = pattern),
+    position = position_stack(vjust = 0.5), size = 3
+  ) +
+  scale_colour_identity() +
+  facet_wrap(~panel, scales = "free_y") +
+  scale_fill_manual(
+    values = c(
+      "Economy-led" = "#8f99a3", "Budget-led" = "#7fc4ea", "Priority-led" = "#0071bc",
+      Declining = "#b5452c"
+    ),
+    breaks = PATTERNS
+  ) +
+  scale_x_continuous(breaks = c(0, 25, 50, 75, 100), labels = scales::label_percent(scale = 1)) +
+  labs(x = "Share of countries (labels: countries)", y = NULL, title = "Four patterns of change")
+```
+
+## Slide 8. Economy part against health priority part, by country
+
+*Question on the slide: Where did health lose budget share while the economy grew?*
+
+We plot each country as a point over its latest window: the economy part on the horizontal axis and the health priority part on
+the vertical axis, both in log points a year. The lower right quarter, shaded, holds the countries where health's share
+of government spending fell while real GDP per person grew; those countries are drawn in rust and named by income group
+in the second table. The four counts in the corners come from the signs alone, so a country on an axis line is counted
+on the side the rule puts it.
+
+Our chart shows the range containing most countries, while the corner counts include countries outside that range. A falling health share in a growing economy does not always mean spending fell. In many countries with a falling share, the economy part exceeded the loss of priority, so spending per person still rose. The slide therefore treats the share and the total as separate measures.
+
+```{r slide-08-quadrants, results = "asis", fig.height = 5.6}
+## Slide 8: the economy part against the health priority part for every country with a window, the
+## four sign quadrants, and the countries where health lost priority while the economy grew.
+win <- mine$win |>
+  filter(!is.na(total)) |>
+  left_join(short_names, by = "iso3")
+econ <- win$econ
+prio <- win$priority
+total <- win$total
+lost <- win$lost_priority %in% TRUE
+
+# the countries where health lost priority while the economy grew, by income group, alphabetical
+lost_count <- c()
+lost_names <- c()
+for (group in INC) {
+  in_group <- win |>
+    filter(lost_priority %in% TRUE, income_group == group) |>
+    arrange(sort_name)
+  lost_count[group] <- nrow(in_group)
+  lost_names[group] <- knitr::combine_words(in_group$short, oxford_comma = FALSE)
+}
+
+counts <- tibble(
+  Item = c(
+    "Countries with a window", "Economy up, health share up or flat",
+    "Economy up, health share down (health lost priority)",
+    "Economy flat or down, health share up or flat", "Both down",
+    "Lost priority and still spent more per person", "Lost priority and spent less per person",
+    "Health share up while the economy stagnated or fell", "... and spending still grew",
+    "Health priority part above zero", "Size of government part above zero",
+    "Economy part above zero", "Countries outside the view (economy -8 to +10, priority -12 to +12)"
+  ),
+  Value = c(
+    nrow(win),
+    sum(econ > 0 & prio >= 0),
+    sum(econ > 0 & prio < 0),
+    sum(econ <= 0 & prio >= 0),
+    sum(econ <= 0 & prio < 0),
+    sum(lost & total > 0),
+    sum(lost & total < 0),
+    sum(econ <= 0 & prio > 0),
+    sum(econ <= 0 & prio > 0 & total > 0),
+    sum(prio > 0),
+    sum(win$budget > 0),
+    sum(econ > 0),
+    sum(econ < -8 | econ > 10 | prio < -12 | prio > 12)
+  )
+)
+lost_table <- tibble(
+  `Income group` = unname(INC_LABEL),
+  Countries = unname(lost_count),
+  Names = unname(lost_names)
+)
+tables <- list(
+  "Counts on the slide" = counts,
+  "Countries where health lost priority while the economy grew, by income group" = lost_table
+)
+show_tables(tables)
+
+# the countries inside the chart's view
+points <- win |>
+  filter(econ >= -8, econ <= 10, priority >= -12, priority <= 12) |>
+  mutate(lost = if_else(lost_priority %in% TRUE,
+    "Health lost priority while the economy grew", "Other countries"
+  ))
+ggplot(points, aes(econ, priority)) +
+  annotate("rect", xmin = 0, xmax = 10, ymin = -12, ymax = 0, fill = "#f6e0da") +
+  geom_hline(yintercept = 0, colour = WB[["slate"]], linewidth = 0.4) +
+  geom_vline(xintercept = 0, colour = WB[["slate"]], linewidth = 0.4) +
+  geom_point(aes(colour = lost), size = 2, alpha = 0.85) +
+  scale_colour_manual(values = c(
+    "Health lost priority while the economy grew" = WB[["rust"]], "Other countries" = WB[["grey"]]
+  )) +
+  scale_x_continuous(
+    limits = c(-8, 10), breaks = c(-8, -4, 0, 4, 8),
+    labels = scales::label_number(style_positive = "plus"), expand = c(0, 0)
+  ) +
+  scale_y_continuous(
+    limits = c(-12, 12), breaks = seq(-12, 12, 4),
+    labels = scales::label_number(style_positive = "plus"), expand = c(0, 0)
+  ) +
+  labs(
+    x = "Economy part, log points a year", y = "Health priority part, log points a year",
+    title = paste(nrow(win), "countries, latest ten-year window")
+  )
+```
+
+## Slide 9. Health's share of government spending, 2000 to 2023
+
+*Question on the slide: Did the pandemic rise in health's budget share hold?*
+
+We follow the median share of government spending that goes to health in each income group from 2000 to 2023,
+with the world median dashed and the pandemic years 2020 and 2021 shaded. Each median is taken over the group's
+countries with data in that year. The tables follow the same countries through 2019, 2021 and 2023 and sort the countries into
+five paths: rose and kept rising; rose, partly reversed, but still above 2019; rose, then fell back to or below 2019;
+did not rise by 2021 but stood above 2019 by 2023; and did not rise, at or below 2019 in 2023. "Kept part of the rise"
+counts the first two paths.
+
+Our data stop in 2023. Whether the remaining rise is a lasting change in priorities or a slow withdrawal of pandemic
+spending needs later years.
+
+```{r slide-09-health-share, results = "asis"}
+## Slide 9: the median share of government spending for health by income group, 2000-2023, and the
+## five paths from 2019 to 2023 for the countries with data in 2019, 2021 and 2023.
+STATES <- c(
+  "Rose and kept rising", "Rose, partly reversed, still above 2019",
+  "Rose, then fell back to or below 2019", "Did not rise by 2021, above 2019 by 2023",
+  "Did not rise, at or below 2019 in 2023"
+)
+keys <- c(INC, "world")
+pandemic_rows <- mine$pand_grp |>
+  filter(key %in% keys) |>
+  arrange(match(key, keys))
+world_pandemic <- filter(mine$pand_grp, key == "world")
+
+# the median share in 2000, 2019 and 2023, one column per year
+shares <- mine$trend |>
+  filter(key %in% keys, year %in% c(2000, 2019, 2023)) |>
+  select(key, year, med_slice) |>
+  pivot_wider(names_from = year, values_from = med_slice, names_prefix = "share_") |>
+  arrange(match(key, keys))
+path_counts <- table(factor(mine$pand$state, levels = STATES))
+
+world_table <- tibble(
+  Item = c(
+    "Countries", "Median share, 2019", "Median share, 2021", "Median share, 2023", "Rose by 2021",
+    "Above 2019 in 2023"
+  ),
+  Value = c(
+    world_pandemic$n,
+    share_pct(world_pandemic$med19),
+    share_pct(world_pandemic$med21),
+    share_pct(world_pandemic$med23),
+    world_pandemic$rose,
+    world_pandemic$above19_in23
+  )
+)
+paths_table <- tibble(
+  Path = STATES,
+  Countries = as.vector(path_counts)
+)
+group_table <- tibble(
+  Group = c(unname(INC_LABEL), "World"),
+  `2000` = share_pct(shares$share_2000),
+  `2019` = share_pct(shares$share_2019),
+  `2023` = share_pct(shares$share_2023),
+  `Kept part of the rise` = paste(pandemic_rows$kept, "of", pandemic_rows$n),
+  `Median change 2019-2021, points` = signed(pandemic_rows$med_d1921),
+  `Median change 2021-2023, points` = signed(pandemic_rows$med_d2123)
+)
+tables <- list(
+  "World, the same countries in 2019, 2021 and 2023" = world_table,
+  "Paths from 2019 to 2023 (countries)" = paths_table,
+  "Median share of government spending for health, by income group" = group_table
+)
+show_tables(tables)
+
+line_order <- c("High income", "Upper middle income", "Lower middle income", "Low income", "World")
+share_lines <- mine$trend |>
+  filter(key %in% keys) |>
+  mutate(
+    group = if_else(key == "world", "World", INC_LABEL[key]),
+    group = factor(group, levels = line_order)
+  )
+line_ends <- share_lines |>
+  filter(year == 2023) |>
+  mutate(
+    group_short = sub(" income", "", group),
+    label = paste0(group_short, " ", share_pct(med_slice))
+  )
+ggplot(share_lines, aes(year, med_slice, colour = group, linetype = group)) +
+  annotate("rect", xmin = 2019.5, xmax = 2021.5, ymin = 0, ymax = 16, fill = WB[["tint"]]) +
+  geom_line(linewidth = 1.1) +
+  geom_text(
+    data = line_ends, aes(x = 2023.4, label = label),
+    hjust = 0, size = 3.2, show.legend = FALSE
+  ) +
+  scale_colour_manual(values = c(
+    "High income" = WB[["navy"]], "Upper middle income" = WB[["blue"]],
+    "Lower middle income" = WB[["sky"]], "Low income" = WB[["slate"]], World = WB[["grey"]]
+  )) +
+  scale_linetype_manual(values = c(
+    "High income" = "solid", "Upper middle income" = "solid", "Lower middle income" = "solid",
+    "Low income" = "solid", World = "dashed"
+  )) +
+  scale_x_continuous(
+    breaks = c(2000, 2005, 2010, 2015, 2019, 2023), expand = expansion(add = c(0.3, 5.5))
+  ) +
+  scale_y_continuous(
+    limits = c(0, 16), breaks = seq(0, 16, 4), labels = scales::label_percent(scale = 1),
+    expand = c(0, 0)
+  ) +
+  labs(
+    x = NULL, y = "Health, % of government expenditure (median)",
+    title = "Median share by income group, 2000-2023", subtitle = "Shaded: 2020 to 2021"
+  ) +
+  theme(legend.position = "none")
+```
+
+## Slide 10. Instructive examples within income groups, latest ten-year window
+
+*Question on the slide: Which countries grew fast through the budget, and kept growing?*
+
+We select examples using a rule applied within each income group over the latest window. A country qualifies if its total growth is at or above its group's 75th percentile, the size of government and health priority together account for at least half of that growth, spending per person grew in both halves (start to middle year, then middle year to end), and its series carries no data flag. The first table gives the thresholds; the second gives the three parts, total and two halves for each example. The slide's halves column uses the most common pair of half-windows, while a country with different halves has its own years after its name.
+
+We use the list as a starting point for reading budget records, not a ranking of policy. Fast growth from a low base is common
+among the examples, and the reasons behind each record lie in budget documents that this decomposition does not see.
+
+```{r slide-10-examples, results = "asis", fig.height = 6.4}
+## Slide 10: the instructive examples (thresholds by income group, the three
+## parts, the total and the two halves).
+win <- mine$win |>
+  filter(!is.na(total)) |>
+  left_join(short_names, by = "iso3")
+
+# the 75th percentile of total growth in each income group, and the examples it gives
+thresholds <- win |>
+  group_by(income_group) |>
+  summarise(
+    threshold = quantile(total, 0.75, names = FALSE),
+    examples = sum(example %in% TRUE)
+  ) |>
+  arrange(match(income_group, INC))
+examples <- win |>
+  filter(example %in% TRUE) |>
+  arrange(match(income_group, INC), desc(total))
+
+# The two halves of each window, such as "2013-18 / 2018-23". We print the most common pair once, in
+# the third table, and any other pair after the country's name.
+halves <- paste0(
+  examples$y0, "-", substr(examples$mid, 3, 4), " / ", examples$mid, "-", substr(examples$y1, 3, 4)
+)
+halves_in_order <- factor(halves, levels = unique(halves))
+halves_count <- table(halves_in_order)
+common <- names(which.max(halves_count))
+other_halves <- if_else(halves != common, paste0(" (", halves, ")"), "")
+example_label <- paste0(examples$short, other_halves)
+nepal <- filter(examples, iso3 == "NPL")
+nepal_range <- paste(dollars(nepal$ghe0), "to", dollars(nepal$ghe1))
+
+threshold_table <- tibble(
+  `Income group` = unname(INC_LABEL),
+  `75th percentile of total growth` = one_decimal(thresholds$threshold),
+  Examples = thresholds$examples
+)
+example_table <- tibble(
+  `Income group` = unname(INC_LABEL[examples$income_group]),
+  Country = example_label,
+  Economy = signed(examples$econ),
+  `Size of government` = signed(examples$budget),
+  `Health priority` = signed(examples$priority),
+  Total = signed(examples$total),
+  `By half of the window` = paste(signed(examples$half1), "/", signed(examples$half2))
+)
+also_printed <- tibble(
+  Item = c(
+    "Examples in all", "Most common half-windows",
+    "Nepal, spending per person at the start and end of its window"
+  ),
+  Value = c(nrow(examples), common, nepal_range)
+)
+tables <- list(
+  "The rule's thresholds and the count of examples by income group" = threshold_table,
+  "Instructive examples, log points a year" = example_table,
+  "Also printed on the slide" = also_printed
+)
+show_tables(tables)
+
+# one panel per income group, named without the word "income"
+income_panel <- sub(" income", "", INC_LABEL)
+bars <- tibble(
+  label = example_label,
+  econ = examples$econ,
+  budget = examples$budget,
+  priority = examples$priority,
+  total = examples$total,
+  group = factor(income_panel[examples$income_group], levels = income_panel)
+)
+plot_parts(bars, "label", xlab = "Log points a year", facet = "group") +
+  labs(title = "The three parts and the total, instructive examples")
+```
+
+## Slide 11. Warning cases within income groups, latest ten-year window
+
+*Question on the slide: Where did spending fall, or health lose what growth added?*
+
+We define a country as a warning case if spending per person fell over its window, or if the economy part was positive and health
+priority took away at least half of the economy part. The "offset" column
+gives the share of the economy part that the fall in priority took away. Countries that meet the rule but carry a data
+flag are listed apart in the third table with their flag letters (B break, S shock, E extreme end year, L very low
+level), because a flagged series can produce a decline or an offset that is an artefact of the accounts. A window
+other than 2013-2023 is shown after the country's name.
+
+We can easily miss the offsets, because spending per person still rose in every one of them: health's falling share does
+not show in the total.
+
+```{r slide-11-warnings, results = "asis", fig.height = 9}
+## Slide 11: the warning cases without a data flag (declines and priority offsets), and the
+## flagged countries that meet the rule.
+win <- mine$win |>
+  filter(!is.na(total)) |>
+  left_join(short_names, by = "iso3")
+
+# A window other than 2013-2023 goes after the country's name. The offset is the share of the
+# economy part that the fall in priority took away.
+warn <- win |>
+  filter(warning %in% TRUE) |>
+  mutate(
+    reason = if_else(total < 0, "Decline", "Offset"),
+    other_window = if_else(y0 != 2013 | y1 != 2023, paste0(" (", y0, " to ", y1, ")"), ""),
+    label = paste0(short, other_window)
+  ) |>
+  arrange(match(income_group, INC), reason != "Decline", total)
+warn_table <- warn |>
+  transmute(
+    reason,
+    Country = label,
+    Inc. = unname(INC_CODE[income_group]),
+    Economy = signed(econ),
+    `Size of government` = signed(budget),
+    `Health priority` = signed(priority),
+    Total = signed(total),
+    Offset = paste0(round(100 * -priority / econ), "%")
+  )
+declines <- warn_table |>
+  filter(reason == "Decline") |>
+  select(-reason, -Offset)
+offsets <- warn_table |>
+  filter(reason == "Offset") |>
+  select(-reason)
+
+# the countries that meet the rule but carry a data flag
+flagged <- win |>
+  filter(warning_rule %in% TRUE, !is.na(flag), nzchar(flag)) |>
+  arrange(match(income_group, INC), total)
+
+flagged_table <- tibble(
+  `Income group` = unname(INC_LABEL[flagged$income_group]),
+  Country = paste0(flagged$short, " (", flagged$flag, ")")
+)
+counts <- tibble(
+  Item = c(
+    "Warning cases without a flag", "Declines", "Offsets", "Flagged, listed apart",
+    "Lower middle income: declines", "Lower middle income: offsets"
+  ),
+  Value = c(
+    nrow(warn),
+    nrow(declines),
+    nrow(offsets),
+    nrow(flagged),
+    sum(warn$reason == "Decline" & warn$income_group == "lower_middle"),
+    sum(warn$reason == "Offset" & warn$income_group == "lower_middle")
+  )
+)
+tables <- list(
+  "Spending per person fell" = declines,
+  "Health priority offset at least half of the economy part" = offsets,
+  "Meet the rule but carry a data flag" = flagged_table,
+  "Counts on the slide" = counts
+)
+show_tables(tables)
+
+panel_names <- c(
+  Decline = "Spending per person fell",
+  Offset = "Health priority offset the economy"
+)
+bars <- tibble(
+  label = warn$label,
+  econ = warn$econ,
+  budget = warn$budget,
+  priority = warn$priority,
+  total = warn$total,
+  group = factor(panel_names[warn$reason], levels = panel_names)
+)
+plot_parts(bars, "label", xlab = "Log points a year", facet = "group") +
+  labs(title = "The three parts and the total, warning cases without a data flag")
+```
+
+## Slide 12. Limits of the decomposition
+
+*Question on the slide: What can this decomposition not tell us?*
+
+On the last slide of Section 1, we place the cautionary evidence alongside the limits. The bar chart shows the share of countries in each income group whose window carries at least one data flag; the second table counts each flag rule (a country can carry more than one). The slide also lists windows ending in 2024, a year GHED releases in stages, the one country without a window and the weight of the largest member in each income group.
+
+We set out five limits on interpretation. The split is an identity, so the parts move together: a fall in GDP raises the government share of GDP on its own. The real-terms conversion mixes prices and exchange rates, so high inflation can distort the economy part. Reclassifications change the shares, while domestic spending excludes external grants that pass through the budget. Part medians do not add up, and group totals reflect their largest members. The rules for examples, warnings and flags are explicit choices that can be changed.
+
+```{r slide-12-limits, results = "asis", fig.height = 3.6}
+## Slide 12: data flags by income group and by rule, windows ending in 2024, countries without a
+## window, and the largest member of each income group.
+win <- mine$win |>
+  filter(!is.na(total)) |>
+  mutate(any_flag = !is.na(flag) & nzchar(flag))
+flags_by_income <- win |>
+  group_by(income_group) |>
+  summarise(countries = n(), flagged = sum(any_flag)) |>
+  arrange(match(income_group, INC))
+
+# the largest member of each income group and its share of the group's spending in 2023
+largest <- mine$contrib |>
+  filter(income_group %in% INC) |>
+  group_by(income_group) |>
+  mutate(share = 100 * ghe1_musd / sum(ghe1_musd)) |>
+  slice_max(ghe1_musd, n = 1, with_ties = FALSE) |>
+  ungroup() |>
+  arrange(match(income_group, INC)) |>
+  left_join(short_names, by = "iso3") |>
+  transmute(
+    `Income group` = unname(INC_LABEL[income_group]),
+    `Largest member` = short,
+    `Share of the group's spending, 2023` = whole_pct(share)
+  )
+
+# windows ending in 2024 and countries without a window, by their full names
+names_2024 <- win$name[win$note_2024 %in% TRUE]
+names_without_window <- mine$win$name[is.na(mine$win$total)]
+
+flag_table <- tibble(
+  `Income group` = unname(INC_LABEL),
+  Flagged = flags_by_income$flagged,
+  Countries = flags_by_income$countries,
+  Share = whole_pct(100 * flags_by_income$flagged / flags_by_income$countries)
+)
+rule_table <- tibble(
+  Flag = c("B", "S", "E", "L", "Any"),
+  Rule = c(
+    "Break: a budget share doubles or halves in one year",
+    "Shock: real GDP per person up 25% or down 20% in one year",
+    "Extreme end: a share at either end over twice or under half its window median",
+    "Level: government spending over 100% of GDP, or health spending under US$1 a person",
+    "At least one flag"
+  ),
+  Countries = c(
+    sum(grepl("B", win$flag)), sum(grepl("S", win$flag)), sum(grepl("E", win$flag)),
+    sum(grepl("L", win$flag)), sum(win$any_flag)
+  )
+)
+window_table <- tibble(
+  Item = c("Countries with a window", "Windows ending in 2024", "No window"),
+  Value = c(
+    nrow(win),
+    knitr::combine_words(names_2024, oxford_comma = FALSE),
+    knitr::combine_words(names_without_window, oxford_comma = FALSE)
+  )
+)
+tables <- list(
+  "Countries whose window carries a data flag, by income group" = flag_table,
+  "Flag rules, inside each country's window" = rule_table,
+  "Windows and members" = window_table,
+  "Largest member of each income group" = largest
+)
+show_tables(tables)
+
+flag_share <- tibble(
+  group = factor(INC_LABEL, levels = rev(INC_LABEL)),
+  pct = 100 * flags_by_income$flagged / flags_by_income$countries,
+  label = paste(flags_by_income$flagged, "of", flags_by_income$countries)
+)
+ggplot(flag_share, aes(x = pct, y = group)) +
+  geom_col(fill = WB[["rust"]], width = 0.6) +
+  geom_text(aes(label = label), hjust = -0.1, size = 3.3) +
+  scale_x_continuous(
+    limits = c(0, 55), breaks = c(0, 25, 50), labels = scales::label_percent(scale = 1),
+    expand = c(0, 0)
+  ) +
+  labs(
+    x = "Countries whose window carries a data flag", y = NULL,
+    title = "Data flags by income group, latest window"
+  )
+```
+
+# Section 2. The 2027-2029 health budget prescription
+
+## Slide 13. How much should the health budget ask for, 2027 to 2029?
+
+*Kicker on the slide: Section 2.*
+
+On the divider, we open Section 2 with its subtitle, "The least to ask for, the most to ask for, and the room growth leaves",
+and list the titles of the eight slides that follow. The numbers behind those slides come from the prescription engine
+described above, so no computation sits here.
+
+## Slide 14. The method in one country: Kenya, 2024 to 2029
+
+*Question on the slide: How much should the health budget ask for?*
+
+We use Kenya to show the method on one country, in billions of Kenyan shillings at current prices. The top panel is GDP from the
+IMF; the middle panel is government spending on the IMF path, with the flat-share path dotted; the bottom panel is the
+health budget. The growth of government spending above its 2026 level is the ceiling. Holding health's 2026 share
+(*h*, the value at the end of Kenya's window, held to 2026) on that growth gives the protect amount, the least to ask for. The upper
+ask is the largest admissible candidate; in Kenya the own trend in health's share is positive but smaller than the
++0.75-point step, so the step sets the ask.
+
+From 2026 on, we use IMF projections, and *h* itself is a nowcast for 2025 and 2026. The amounts here are nominal;
+the real versions, and the conversion to US\$, come on the next slides.
+
+```{r slide-14-kenya, results = "asis", fig.height = 6.6}
+## Slide 14: Kenya, the method drawn from 2024 to 2029 (GDP, government spending on both paths, the
+## health budget at the protect amount and on the upper-ask path), KES billion at current prices.
+kenya_lines <- mine$rx_lines |>
+  filter(iso3 == "KEN") |>
+  arrange(year)
+kenya_imf <- filter(kenya_lines, variant == "imf")
+kenya_flat <- filter(kenya_lines, variant == "flat")
+kenya <- mine$rx |>
+  filter(iso3 == "KEN", variant == "imf") |>
+  arrange(year) # 2027, 2028 and 2029
+kenya_2029 <- filter(kenya, year == 2029)
+imf_2029 <- filter(kenya_imf, year == 2029)
+flat_2029 <- filter(kenya_flat, year == 2029)
+
+kenya_table <- tibble(
+  Item = c(
+    "Ceiling, 2026 to 2029", "Health's share of government spending, %", "Protect amount, 2029",
+    "Upper ask, 2029", "Upper ask, % of the ceiling", "GDP, 2029",
+    "Government spending, 2029, IMF path", "Government spending, 2029, flat share",
+    "Health budget at the upper ask, 2029", "Health budget at the protect amount, 2029"
+  ),
+  Value = c(
+    one_decimal(kenya_2029$d_all / 1e9),
+    one_decimal(kenya_2029$h),
+    one_decimal(kenya_2029$d_protect / 1e9),
+    one_decimal(kenya_2029$ask / 1e9),
+    whole_pct(kenya_2029$ask_share_of_ceiling_nominal),
+    one_decimal(imf_2029$gdp / 1e9),
+    one_decimal(imf_2029$gge / 1e9),
+    one_decimal(flat_2029$gge / 1e9),
+    one_decimal((kenya_2029$health26 + kenya_2029$ask) / 1e9),
+    one_decimal(imf_2029$health_protect / 1e9)
+  )
+)
+tables <- list("Kenya, KES billion at current prices, IMF path" = kenya_table)
+show_tables(tables)
+
+# Three panels: GDP, government spending on both paths, and the health budget at the
+# protect amount and on the upper-ask path
+upper_ask <- tibble(
+  year = 2026:2029,
+  v = c(kenya_2029$health26, kenya$health26 + kenya$ask)
+)
+flat_from_2026 <- filter(kenya_flat, year >= 2026)
+line_names <- c(
+  "IMF path", "Flat spending share", "Protect: health's share held",
+  "Upper ask: +0.75 points a year"
+)
+kenya_long <- bind_rows(
+  tibble(panel = "A. GDP", year = kenya_imf$year, v = kenya_imf$gdp / 1e9, line = line_names[1]),
+  tibble(
+    panel = "B. Government spending", year = kenya_imf$year, v = kenya_imf$gge / 1e9,
+    line = line_names[1]
+  ),
+  tibble(
+    panel = "B. Government spending", year = flat_from_2026$year, v = flat_from_2026$gge / 1e9,
+    line = line_names[2]
+  ),
+  tibble(
+    panel = "C. Health budget", year = kenya_imf$year, v = kenya_imf$health_protect / 1e9,
+    line = line_names[3]
+  ),
+  tibble(
+    panel = "C. Health budget", year = upper_ask$year, v = upper_ask$v / 1e9,
+    line = line_names[4]
+  )
+) |>
+  mutate(line = factor(line, levels = line_names))
+ggplot(kenya_long, aes(year, v, colour = line, linetype = line)) +
+  annotate("rect", xmin = 2026, xmax = 2029, ymin = -Inf, ymax = Inf, fill = "#f2f4f6") +
+  geom_line(linewidth = 1.1) +
+  geom_point(size = 1.6) +
+  facet_wrap(~panel, ncol = 1, scales = "free_y") +
+  scale_colour_manual(
+    values = setNames(c(WB[["blue"]], WB[["grey"]], WB[["rust"]], WB[["navy"]]), line_names)
+  ) +
+  scale_linetype_manual(values = setNames(c("solid", "dotted", "solid", "dashed"), line_names)) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  scale_x_continuous(breaks = 2024:2029) +
+  labs(
+    x = NULL, y = "KES billion, current prices",
+    title = "Kenya: the ceiling, the protect amount and the upper ask",
+    caption = "Shaded years: IMF projections from 2026."
+  )
+```
+
+## Slide 15. Protect amount, upper ask and ceiling by income group, 2029
+
+*Question on the slide: How much room does growth leave, and how much must health ask for?*
+
+We compare the median country's protect amount, upper ask and ceiling for 2029 on the IMF path, in real terms, across income groups. The chart shows each real increase over 2026 as a per cent of the 2026 health budget, using a log scale because the ceiling is many times the protect amount. The table gives the same medians in constant 2026 US\$ per person. Each median is calculated separately, and the upper ask includes only countries where the method applies.
+
+The ceiling equals the protect amount divided by health's share, so a country spending 5% of its budget on health has a
+ceiling twenty times its protect amount, and one spending 15% about seven times. The ratio explains why the ceiling is very large in
+per cent where health's share is small, while the dollar amounts per person stay small in low-income countries.
+
+```{r slide-15-groups, results = "asis", fig.height = 4.4}
+## Slide 15: median protect amount, upper ask and ceiling in 2029 (IMF path, real), by
+## income group, in per cent of the 2026 health budget and in constant 2026 US$ per person;
+## and the regional values the slide quotes.
+groups_2029 <- filter(mine$rx_grp, variant == "imf", year == 2029)
+income_2029 <- groups_2029 |>
+  filter(key %in% c("world", INC)) |>
+  arrange(match(key, c("world", INC)))
+group_names <- c("World", unname(INC_LABEL))
+south_asia <- filter(groups_2029, key == "South Asia")
+africa <- filter(groups_2029, key == "Sub-Saharan Africa")
+
+median_table <- tibble(
+  Group = group_names,
+  n = income_2029$n,
+  `Protect, %` = share_pct(income_2029$med_d_protect_pct),
+  `Upper ask, %` = share_pct(income_2029$med_ask_pct),
+  `Ceiling, %` = whole_pct(income_2029$med_d_all_pct),
+  `Protect, US$ per person` = dollars(income_2029$med_d_protect_usd_pp),
+  `Upper ask, US$ per person` = dollars(income_2029$med_ask_usd_pp),
+  `Ceiling, US$ per person` = dollars(income_2029$med_d_all_usd_pp),
+  `Upper ask, % of the real ceiling` = whole_pct(income_2029$med_ask_share_of_ceiling)
+)
+also_printed <- tibble(
+  Item = c(
+    "Ceiling as a multiple of the protect amount at a 15% share", "South Asia: ceiling",
+    "Sub-Saharan Africa: ceiling", "Sub-Saharan Africa: upper ask",
+    "Sub-Saharan Africa: upper ask per person"
+  ),
+  Value = c(
+    round(100 / 15),
+    whole_pct(south_asia$med_d_all_pct),
+    whole_pct(africa$med_d_all_pct),
+    share_pct(africa$med_ask_pct),
+    dollars(africa$med_ask_usd_pp)
+  )
+)
+tables <- list(
+  "Median country, 2029, IMF path, real increase over 2026" = median_table,
+  "Also printed on the slide" = also_printed
+)
+show_tables(tables)
+
+# a dot for each amount on a log scale, joined from the protect amount to the ceiling
+amount_names <- c("Protect, the minimum ask", "Upper ask", "Ceiling")
+dots <- bind_rows(
+  tibble(
+    group = group_names, v = income_2029$med_d_protect_pct, what = amount_names[1],
+    label = share_pct(income_2029$med_d_protect_pct)
+  ),
+  tibble(
+    group = group_names, v = income_2029$med_ask_pct, what = amount_names[2],
+    label = share_pct(income_2029$med_ask_pct)
+  ),
+  tibble(
+    group = group_names, v = income_2029$med_d_all_pct, what = amount_names[3],
+    label = whole_pct(income_2029$med_d_all_pct)
+  )
+) |>
+  mutate(
+    group = factor(group, levels = rev(group_names)),
+    what = factor(what, levels = amount_names)
+  )
+ranges <- tibble(
+  group = factor(group_names, levels = rev(group_names)),
+  from = income_2029$med_d_protect_pct,
+  to = income_2029$med_d_all_pct
+)
+ggplot(dots, aes(x = v, y = group)) +
+  geom_segment(
+    data = ranges, aes(x = from, xend = to, y = group, yend = group),
+    colour = WB[["grey"]], linewidth = 1.2
+  ) +
+  geom_point(aes(shape = what, fill = what), size = 3.6, colour = "white") +
+  geom_text(aes(label = label, colour = what), vjust = -1.1, size = 3.1, show.legend = FALSE) +
+  scale_x_log10(
+    limits = c(1, 500), breaks = c(1, 2, 5, 10, 20, 50, 100, 200, 500),
+    labels = scales::label_percent(scale = 1)
+  ) +
+  scale_shape_manual(values = c(22, 21, 23)) +
+  scale_fill_manual(values = setNames(c("#8f99a3", WB[["blue"]], WB[["navy"]]), amount_names)) +
+  scale_colour_manual(values = setNames(c("black", WB[["blue"]], "black"), amount_names)) +
+  labs(
+    x = "Real increase 2026 to 2029, % of the 2026 health budget (log scale)", y = NULL,
+    title = "Median country, IMF path, 2026 prices"
+  )
+```
+
+## Slide 16. Where the method does not apply, 2027 to 2029
+
+*Question on the slide: Where is the budget itself the question?*
+
+Our method needs a growing government budget. Where government spending in national currency is lower than in 2026, the
+method does not apply and the question becomes the fiscal envelope rather than health's priority. The first table counts
+those countries by year on each path, the countries where the budget grows in currency but falls in real terms, and the
+countries where the real upper ask is larger than the real growth of the whole budget. The second table lists every
+country in which government spending does not grow in at least one year.
+
+On the IMF path, we find that most cases where the method does not apply come from a falling projected spending share, a fiscal stance, rather than from a
+shrinking economy: with the share held flat, only three countries remain, those where nominal GDP itself falls.
+
+```{r slide-16-not-apply, results = "asis", fig.height = 4}
+## Slide 16: countries where the method does not apply (government spending does not grow), where
+## the budget falls in real terms only, and where the upper ask exceeds real budget growth; and the
+## list of countries without budget growth.
+world_rx <- filter(mine$rx_grp, key == "world")
+world_imf <- world_rx |>
+  filter(variant == "imf") |>
+  arrange(year)
+world_flat <- world_rx |>
+  filter(variant == "flat") |>
+  arrange(year)
+
+# Every country with IMF projections in which government spending does not grow in at least one
+# year, on either path. The deck's builder sorts these names by code point, as arrange() does.
+with_projections <- filter(mine$rx, has_data %in% TRUE)
+no_growth <- with_projections |>
+  filter(!(applies %in% TRUE)) |>
+  arrange(year) |>
+  group_by(iso3, name, income_group) |>
+  summarise(
+    imf = paste(year[variant == "imf"], collapse = ", "),
+    flat = paste(year[variant == "flat"], collapse = ", "),
+    n_imf = sum(variant == "imf"),
+    n_flat = sum(variant == "flat"),
+    .groups = "drop"
+  ) |>
+  mutate(
+    imf = if_else(n_imf > 0, imf, "-"),
+    flat = if_else(n_flat > 0, flat, "-")
+  ) |>
+  arrange(name) |>
+  left_join(short_names, by = "iso3")
+ask_above <- with_projections |>
+  filter(variant == "imf", ask_above_real_ceiling %in% TRUE) |>
+  distinct(iso3) |>
+  nrow()
+flat_names <- no_growth$name[no_growth$n_flat > 0]
+
+by_year <- tibble(
+  Year = 2027:2029,
+  `Does not apply, IMF path` = world_imf$n_not_applies,
+  `Falls in real terms only, IMF path` = world_imf$n_real_fall_only,
+  `Does not apply, flat share` = world_flat$n_not_applies,
+  `Upper ask above real budget growth, IMF path` = world_imf$n_ask_above_real_ceiling,
+  `Countries with IMF projections` = world_imf$n
+)
+across_years <- tibble(
+  Item = c(
+    "Does not apply in at least one year, IMF path", "Does not apply, flat share",
+    "Upper ask above real budget growth in at least one year, IMF path"
+  ),
+  Value = c(
+    sum(no_growth$n_imf > 0),
+    knitr::combine_words(flat_names, oxford_comma = FALSE),
+    ask_above
+  )
+)
+no_growth_table <- tibble(
+  Country = no_growth$short,
+  Inc. = unname(INC_CODE[no_growth$income_group]),
+  `IMF path` = no_growth$imf,
+  `Flat share` = no_growth$flat
+)
+tables <- list(
+  "Countries by year" = by_year,
+  "Counts across the three years" = across_years,
+  "Years in which government spending does not grow" = no_growth_table
+)
+show_tables(tables)
+
+series <- c(
+  "Does not apply, IMF path", "Falls in real terms only, IMF path", "Does not apply, flat share"
+)
+counts_by_year <- tibble(
+  year = factor(rep(2027:2029, 3), levels = 2029:2027),
+  series = factor(rep(series, each = 3), levels = rev(series)),
+  v = c(world_imf$n_not_applies, world_imf$n_real_fall_only, world_flat$n_not_applies)
+)
+ggplot(counts_by_year, aes(x = v, y = year, fill = series)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.75) +
+  geom_text(aes(label = v), position = position_dodge(width = 0.8), hjust = -0.3, size = 3.2) +
+  scale_fill_manual(
+    values = setNames(c(WB[["rust"]], WB[["rosy"]], "#8f99a3"), series),
+    breaks = series
+  ) +
+  scale_x_continuous(limits = c(0, 35), expand = c(0, 0)) +
+  labs(
+    x = paste("Countries, of", world_imf$n[world_imf$year == 2029], "with IMF projections"),
+    y = NULL, title = "Countries by year"
+  )
+```
+
+## Slide 17. The upper ask: own trend against the fixed steps, 2027 to 2029
+
+*Question on the slide: What sets the upper ask: the country's own trend or a fixed step?*
+
+We define the upper ask as the largest admissible candidate: the country's own trend in health's share (if the share rose over the
+window) or a fixed step of +0.25, +0.5 or +0.75 points a year. The chart and the first table count which candidate set
+the ask in each year, among the countries where the method applies. The second table sorts every country's own trend
+into bands, by income group: the trend is the change in health's share over the window divided by the window's length,
+in percentage points a year.
+
+We find that health's share rose by more than 0.75 points a year in only one country over the last decade, so the +0.75 step sets the
+ask almost everywhere and the upper ask behaves close to a fixed rule. The same step is a larger relative rise where
+health's share is low.
+
+```{r slide-17-setter, results = "asis", fig.height = 3.4}
+## Slide 17: which candidate set the upper ask in each year (IMF path), the own trend in health's
+## share by band and income group, and the upper ask as a share of the real ceiling.
+SETTERS <- c(
+  "075" = "+0.75 a year", "050" = "+0.5 a year", "025" = "+0.25 a year", trend = "Own trend",
+  none = "None admissible"
+)
+world_imf <- mine$rx_grp |>
+  filter(key == "world", variant == "imf") |>
+  arrange(year)
+groups_2029 <- filter(mine$rx_grp, variant == "imf", year == 2029)
+
+# the own trend in health's share is the same in every year, so one
+# year (2027) gives one row per country
+rows_2027 <- filter(mine$rx, variant == "imf", year == 2027)
+trends <- rows_2027$trend[!is.na(rows_2027$trend)]
+trend_rows <- bind_rows(
+  mutate(rows_2027, Countries = "World"),
+  mutate(rows_2027, Countries = unname(INC_LABEL[income_group]))
+)
+bands <- trend_rows |>
+  filter(!is.na(trend)) |>
+  group_by(Countries) |>
+  summarise(
+    `Fell or flat` = sum(trend <= 0),
+    `Up to 0.25` = sum(trend > 0 & trend <= 0.25),
+    `0.25 to 0.5` = sum(trend > 0.25 & trend <= 0.5),
+    `0.5 to 0.75` = sum(trend > 0.5 & trend <= 0.75),
+    `Above 0.75` = sum(trend > 0.75),
+    n = n()
+  ) |>
+  arrange(match(Countries, c("World", INC_LABEL)))
+
+setter_table <- tibble(
+  Year = 2027:2029,
+  `+0.75 a year` = world_imf$set_075,
+  `+0.5 a year` = world_imf$set_050,
+  `+0.25 a year` = world_imf$set_025,
+  `Own trend` = world_imf$set_trend,
+  `None admissible` = world_imf$set_none,
+  `Method applies` = world_imf$n_applies
+)
+also_printed <- tibble(
+  Item = c(
+    "Median trend, points a year", "Middle half, from", "Middle half, to",
+    "Upper ask, % of the real ceiling, 2029: world", "low income", "high income"
+  ),
+  Value = c(
+    signed(median(trends)),
+    one_decimal(quantile(trends, 0.25, names = FALSE)),
+    signed(quantile(trends, 0.75, names = FALSE)),
+    whole_pct(world_imf$med_ask_share_of_ceiling[world_imf$year == 2029]),
+    whole_pct(groups_2029$med_ask_share_of_ceiling[groups_2029$key == "low"]),
+    whole_pct(groups_2029$med_ask_share_of_ceiling[groups_2029$key == "high"])
+  )
+)
+tables <- list(
+  "Candidate that set the upper ask, IMF path (countries where the method applies)" = setter_table,
+  "Own trend in health's share, points a year, latest decade" = bands,
+  "Also printed on the slide" = also_printed
+)
+show_tables(tables)
+
+# the count of each candidate in each year, as a share of the countries where the method applies
+set_by <- world_imf |>
+  select(
+    year,
+    total = n_applies, `075` = set_075, `050` = set_050, `025` = set_025, trend = set_trend,
+    none = set_none
+  ) |>
+  pivot_longer(-c(year, total), names_to = "setter", values_to = "n") |>
+  mutate(
+    year = factor(year, levels = 2029:2027),
+    setter = factor(SETTERS[setter], levels = rev(SETTERS)),
+    # we write the count on segments of five countries or more
+    label = if_else(n >= 5, as.character(n), "")
+  )
+ggplot(set_by, aes(x = 100 * n / total, y = year, fill = setter)) +
+  geom_col(width = 0.65) +
+  geom_text(
+    aes(label = label, group = setter),
+    position = position_stack(vjust = 0.5), colour = "white", size = 3.2
+  ) +
+  scale_fill_manual(
+    values = setNames(
+      c(WB[["navy"]], WB[["blue"]], WB[["light"]], WB[["rust"]], "#d5dade"), unname(SETTERS)
+    ),
+    breaks = unname(SETTERS)
+  ) +
+  scale_x_continuous(
+    breaks = c(0, 25, 50, 75, 100), labels = scales::label_percent(scale = 1),
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  labs(
+    x = "Share of countries where the method applies (labels: countries)", y = NULL,
+    title = "Candidate that sets the upper ask, IMF path"
+  )
+```
+
+## Slide 18. IMF spending path against a flat spending share, 2029
+
+*Question on the slide: Does the IMF's spending path change the answer?*
+
+The IMF path carries the IMF's fiscal assumptions for each country, including consolidation. The flat path holds the
+2026 expenditure share of GDP, so government spending grows with GDP. The scatter compares each country's real growth of
+government spending from 2026 to 2029 on the two paths; points above the dashed line get more from the flat share. The
+table compares the median real ceiling and the median real upper ask on the two paths, by income group.
+
+We find that the ceiling depends heavily on the path and the upper ask less so, since the ask applies a share to the budget while
+the ceiling is the whole increase. The path also decides where the method applies at all.
+
+```{r slide-18-paths, results = "asis", fig.height = 5.6}
+## Slide 18: the IMF path against a flat spending share in 2029: country by country real growth of
+## government spending, the ceiling and the upper ask on each path, and the medians by income group.
+with_data <- unique(mine$rx$iso3[mine$rx$has_data %in% TRUE])
+imf_2029 <- mine$rx |>
+  filter(variant == "imf", year == 2029, iso3 %in% with_data) |>
+  select(
+    iso3,
+    imf_ceiling = d_all_pct, imf_ask = ask_pct, imf_real = d_all_real, imf_gge26 = gge26
+  )
+flat_2029 <- mine$rx |>
+  filter(variant == "flat", year == 2029, iso3 %in% with_data) |>
+  select(
+    iso3,
+    flat_ceiling = d_all_pct, flat_ask = ask_pct, flat_real = d_all_real, flat_gge26 = gge26
+  )
+
+# Each country on both paths. The deck rounds the real growth of government spending to one decimal
+# before it places a country on the chart, so we do the same.
+paths <- inner_join(imf_2029, flat_2029, by = "iso3") |>
+  mutate(
+    ask_close = !is.na(imf_ask) & !is.na(flat_ask) & abs(flat_ask - imf_ask) < 5,
+    imf_growth = round(100 * imf_real / imf_gge26, 1),
+    flat_growth = round(100 * flat_real / flat_gge26, 1),
+    in_view = imf_growth >= -50 & imf_growth <= 100 & flat_growth >= -50 & flat_growth <= 100
+  )
+
+# the medians by group on each path
+imf_groups <- mine$rx_grp |>
+  filter(variant == "imf", year == 2029, key %in% c("world", INC)) |>
+  arrange(match(key, c("world", INC)))
+flat_groups <- mine$rx_grp |>
+  filter(variant == "flat", year == 2029, key %in% c("world", INC)) |>
+  arrange(match(key, c("world", INC)))
+
+country_counts <- tibble(
+  Item = c(
+    "Flat share gives a larger ceiling", "Countries",
+    "Median difference in the ceiling, points of the 2026 health budget",
+    "Upper ask differs by less than 5 points", "Countries outside the chart's view",
+    "Does not apply, IMF path", "Does not apply, flat share",
+    "Median upper ask per person, IMF path", "Median upper ask per person, flat share"
+  ),
+  Value = c(
+    sum(paths$flat_ceiling > paths$imf_ceiling),
+    nrow(paths),
+    scales::comma(median(paths$flat_ceiling - paths$imf_ceiling), accuracy = 1),
+    sum(paths$ask_close),
+    sum(!paths$in_view),
+    imf_groups$n_not_applies[1],
+    flat_groups$n_not_applies[1],
+    dollars(imf_groups$med_ask_usd_pp[1]),
+    dollars(flat_groups$med_ask_usd_pp[1])
+  )
+)
+group_medians <- tibble(
+  Group = c("World", unname(INC_LABEL)),
+  `Ceiling, IMF` = whole_pct(imf_groups$med_d_all_pct),
+  `Ceiling, flat` = whole_pct(flat_groups$med_d_all_pct),
+  `Ask, IMF` = share_pct(imf_groups$med_ask_pct),
+  `Ask, flat` = share_pct(flat_groups$med_ask_pct),
+  n = imf_groups$n
+)
+tables <- list(
+  "Countries with IMF projections, 2029" = country_counts,
+  "Median real increase, % of the 2026 health budget, 2029" = group_medians
+)
+show_tables(tables)
+
+in_view <- paths |>
+  filter(in_view) |>
+  mutate(side = if_else(flat_growth > imf_growth, "Flat share gives more", "IMF path gives more"))
+ggplot(in_view, aes(imf_growth, flat_growth)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "black") +
+  geom_hline(yintercept = 0, colour = WB[["grey"]]) +
+  geom_vline(xintercept = 0, colour = WB[["grey"]]) +
+  geom_point(aes(colour = side), size = 2, alpha = 0.85) +
+  scale_colour_manual(
+    values = c("Flat share gives more" = WB[["blue"]], "IMF path gives more" = "#8f99a3")
+  ) +
+  scale_x_continuous(
+    limits = c(-50, 100), breaks = seq(-50, 100, 25), labels = scales::label_percent(scale = 1),
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(
+    limits = c(-50, 100), breaks = seq(-50, 100, 25), labels = scales::label_percent(scale = 1),
+    expand = c(0, 0)
+  ) +
+  coord_equal() +
+  labs(
+    x = "IMF path: real growth of government spending, 2026 to 2029", y = "Flat share: real growth",
+    title = "Each country, 2026 prices", caption = "Dashed line: the two paths agree."
+  )
+```
+
+## Slide 19. Worked examples: Ethiopia, Kenya and Indonesia, 2029
+
+*Question on the slide: What would the prescription ask for in three countries?*
+
+We use three countries to show the method at work in 2029 on the IMF path. For each, the ladder chart expresses the protect amount
+and every candidate as a percentage of the real ceiling (ceiling = 100), with the upper ask darkest. The tables give the
+amounts behind the ladder: the increase over 2026 in national currency at current prices, in US\$ million at the IMF's
+2029 exchange rate, and as a real percentage of the 2026 health budget.
+
+In Ethiopia, we find no trend candidate because its health share fell over the window, and its prices rise fast enough that a
+nominal increase shrinks a good deal in real terms. Kenya's own trend is positive but below the step. In Indonesia the
+ask is a small share of the nominal ceiling. In all three the +0.75-point step sets the ask.
+
+```{r slide-19-examples, results = "asis", fig.height = 4}
+## Slide 19: Ethiopia, Kenya and Indonesia in 2029, IMF path: protect amount, candidates, upper ask
+## and ceiling, with the share of the real ceiling each represents.
+UNIT <- list(
+  ETH = list(div = 1e9, cur = "ETB", scale = "billion", name = "Ethiopia"),
+  KEN = list(div = 1e9, cur = "KES", scale = "billion", name = "Kenya"),
+  IDN = list(div = 1e12, cur = "IDR", scale = "trillion", name = "Indonesia")
+)
+CAND <- c(
+  protect = "d_protect", trend = "c_trend", s025 = "c_025", s050 = "c_050", s075 = "c_075",
+  ask = "ask", ceiling = "d_all"
+)
+CAND_LABEL <- c(
+  protect = "Protect", trend = "Own trend", s025 = "+0.25 a year", s050 = "+0.5 a year",
+  s075 = "+0.75 a year", ask = "Upper ask", ceiling = "Ceiling"
+)
+
+tables <- list()
+ladder <- NULL
+for (iso in c("ETH", "KEN", "IDN")) {
+  row_2029 <- filter(mine$rx, iso3 == iso, variant == "imf", year == 2029)
+  unit <- UNIT[[iso]]
+  # Each amount in four units: national currency, US$ million, the real rise in % of the 2026 health
+  # budget and % of the real ceiling. The own-trend candidate exists only where health's share rose.
+  trend_ok <- !is.na(row_2029$trend) && row_2029$trend > 0
+  # The builder rounds US$ million to one decimal and the slide prints it whole in
+  # JavaScript, which rounds a half away from zero where R's round() goes to the even
+  # number; we round in the same two steps.
+  amounts <- tibble(
+    key = names(CAND),
+    nominal = unlist(row_2029[CAND]),
+    usd = unlist(row_2029[paste0(CAND, "_usd")]),
+    real_pct = unlist(row_2029[paste0(CAND, "_pct")]),
+    real = unlist(row_2029[paste0(CAND, "_real")])
+  ) |>
+    mutate(
+      shown = !is.na(nominal) & (key != "trend" | trend_ok),
+      of_ceiling = 100 * real / row_2029$d_all_real,
+      usd_tenths = round(usd / 1e6, 1),
+      # a half away from zero, as in JavaScript
+      usd_whole = sign(usd_tenths) * floor(abs(usd_tenths) + 0.5)
+    )
+  caption <- paste0(
+    unit$name, ", 2029, IMF path: health ", one_decimal(row_2029$h), "% of government spending"
+  )
+  tables[[caption]] <- amounts |>
+    transmute(
+      Amount = unname(CAND_LABEL[key]),
+      `National currency` = if_else(
+        shown, paste(unit$cur, one_decimal(nominal / unit$div), unit$scale), "-"
+      ),
+      `US$ million` = if_else(shown, scales::comma(usd_whole, accuracy = 1), "-"),
+      `Real, % of the 2026 health budget` = if_else(
+        shown, signed_pct(real_pct), "-"
+      ),
+      `% of the real ceiling` = if_else(
+        shown & !key %in% c("ask", "ceiling"), one_decimal(of_ceiling), "-"
+      )
+    )
+  # the ladder chart: the protect amount and the candidates as % of the real ceiling
+  rungs <- amounts |>
+    filter(key %in% c("protect", "trend", "s025", "s050", "s075")) |>
+    transmute(
+      country = unit$name,
+      cand = unname(CAND_LABEL[key]),
+      v = if_else(shown, of_ceiling, NA),
+      role = case_when(
+        key == "protect" ~ "Protect",
+        key == row_2029$setter ~ "Upper ask",
+        .default = "Other candidate"
+      )
+    )
+  ladder <- bind_rows(ladder, rungs)
+}
+eth <- filter(mine$rx, iso3 == "ETH", variant == "imf", year == 2029)
+ken <- filter(mine$rx, iso3 == "KEN", variant == "imf", year == 2029)
+idn <- filter(mine$rx, iso3 == "IDN", variant == "imf", year == 2029)
+# Ethiopia's price rise as the slide prints it: the builder keeps the price level to three decimals
+# and the slide rounds the per cent half up
+eth_price_level <- round(eth$p, 3)
+eth_price_rise <- floor(100 * (eth_price_level - 1) + 0.5)
+setters <- unique(c(eth$setter_label, ken$setter_label, idn$setter_label))
+tables[["Also printed on the slide"]] <- tibble(
+  Item = c(
+    "Ethiopia: own trend, points a year", "Ethiopia: price rise 2026 to 2029",
+    "Kenya: own trend, points a year", "Kenya: health's share reached by the ask, 2029",
+    "Indonesia: ask, % of the nominal ceiling",
+    "Indonesia: health's share reached by the ask, 2029",
+    "Upper ask set by, all three"
+  ),
+  Value = c(
+    signed(eth$trend),
+    paste0(eth_price_rise, "%"),
+    signed(ken$trend),
+    share_pct(ken$h_ask),
+    whole_pct(idn$ask_share_of_ceiling_nominal),
+    share_pct(idn$h_ask),
+    paste(setters, collapse = ", ")
+  )
+)
+show_tables(tables)
+
+rung_names <- unname(CAND_LABEL[c("protect", "trend", "s025", "s050", "s075")])
+ladder <- ladder |>
+  mutate(
+    cand = factor(cand, levels = rev(rung_names)),
+    country = factor(country, levels = c("Ethiopia", "Kenya", "Indonesia")),
+    bar = coalesce(v, 0),
+    label = if_else(is.na(v), "share fell: no candidate", one_decimal(v))
+  )
+ggplot(ladder, aes(x = bar, y = cand, fill = role)) +
+  geom_col(width = 0.6) +
+  geom_text(aes(label = label), hjust = -0.1, size = 3) +
+  geom_vline(xintercept = 100, linetype = "dashed") +
+  facet_wrap(~country) +
+  scale_fill_manual(
+    values = c(Protect = "#8f99a3", "Upper ask" = WB[["navy"]], "Other candidate" = WB[["light"]]),
+    breaks = c("Protect", "Other candidate", "Upper ask")
+  ) +
+  scale_x_continuous(limits = c(0, 115), breaks = c(0, 25, 50, 75, 100), expand = c(0, 0)) +
+  labs(
+    x = "% of the real ceiling (ceiling = 100)", y = NULL,
+    title = "Protect amount and candidates, 2029, IMF path"
+  )
+```
+
+## Slide 20. The policy table: Ethiopia, Kenya and Indonesia, 2027 to 2029
+
+*Question on the slide: What would the prescription ask for in three countries?*
+
+We use the policy table to lay out every amount the method produces for the three countries in each year from 2027 to 2029, on
+the IMF path: the protect amount, each candidate, the upper ask with the candidate that sets it, and the ceiling. Each
+cell gives the increase over 2026 in national currency at current prices, then its real rise as a percentage of the
+2026 health budget and its value in US\$ million at that year's IMF exchange rate. A dash in the own-trend column means
+the country's health share fell over its window, so there is no trend candidate.
+
+Because the slide is itself a table, we print the table in this chunk and draw no separate figure. Nominal amounts include
+inflation, and the real percentage in each cell shows how much of each increase is left at 2026 prices.
+
+```{r slide-20-policy-table, results = "asis"}
+## Slide 20: the policy table for Ethiopia, Kenya and Indonesia, 2027 to
+## 2029, IMF path; one table per country.
+tables <- list()
+for (iso in c("ETH", "KEN", "IDN")) {
+  unit <- UNIT[[iso]]
+  country_years <- mine$rx |>
+    filter(iso3 == iso, variant == "imf") |>
+    arrange(year)
+  policy_rows <- NULL
+  for (i in seq_len(nrow(country_years))) {
+    one_year <- country_years[i, ]
+    # the amounts as on slide 19: the nominal increase, then (the real rise in %, US$ million)
+    trend_ok <- !is.na(one_year$trend) && one_year$trend > 0
+    nominal <- unlist(one_year[CAND])
+    real_pct <- unlist(one_year[paste0(CAND, "_pct")])
+    usd <- unlist(one_year[paste0(CAND, "_usd")])
+    shown <- !is.na(nominal) & (names(CAND) != "trend" | trend_ok)
+    national <- one_decimal(nominal / unit$div)
+    real_rise <- signed_pct(real_pct)
+    # US$ million rounded in two steps, as on slide 19
+    usd_tenths <- round(usd / 1e6, 1)
+    # a half away from zero, as in JavaScript
+    usd_whole <- sign(usd_tenths) * floor(abs(usd_tenths) + 0.5)
+    usd_million <- scales::comma(usd_whole, accuracy = 1)
+    cell <- if_else(shown, paste0(national, " (", real_rise, ", US$", usd_million, " m)"), "-")
+    policy_rows <- bind_rows(policy_rows, tibble(
+      Year = as.character(one_year$year),
+      Protect = cell[1],
+      `Own trend` = cell[2],
+      `+0.25 a year` = cell[3],
+      `+0.5 a year` = cell[4],
+      `+0.75 a year` = cell[5],
+      `Upper ask` = cell[6],
+      `Set by` = sub(" a year", "", one_year$setter_label),
+      Ceiling = cell[7]
+    ))
+  }
+  first_year <- country_years[1, ]
+  caption <- paste0(
+    unit$name, ": ", unit$cur, " ", unit$scale, "; health ", one_decimal(first_year$h),
+    "% of government spending; own trend ", signed(first_year$trend), " points a year"
+  )
+  tables[[caption]] <- policy_rows
+}
+show_tables(tables)
+```
+
+## Slide 21. Limits of the prescription and what each country team checks
+
+*Question on the slide: What can the prescription not tell a country?*
+
+On the last slide of Section 2, we present the prescription as a starting point for budget dialogue. The prescription tests an ask only against the ceiling, so whether the money can be spent, and spent well, is for the country team to judge from budget execution, an investment case, the latest approved budget and its health share, and health prices that may rise faster than the GDP deflator. The slide reports coverage counts and countries without an IMF series. Peer benchmarks by region or income group do not determine the ask.
+
+We set amounts in current prices, the budget unit, and the countries whose 2029 budget grows in currency but falls in
+real terms are counted here again. The IMF projections are revised twice a year, and the own trend is a decade's average
+that can hide a recent reversal.
+
+```{r slide-21-limits, results = "asis"}
+## Slide 21: coverage of the prescription and the countries without an IMF
+## series (the slide is text; no figure).
+countries_with_base <- unique(mine$rx$iso3)
+countries_with_data <- unique(mine$rx$iso3[mine$rx$has_data %in% TRUE])
+world_2029 <- filter(mine$rx_grp, key == "world", variant == "imf", year == 2029)
+
+# The countries without an IMF series, sorted by code point as the deck's builder sorts them, and
+# printed without the bracket or the east Jerusalem note in their GHED names
+no_imf_names <- mine$rx |>
+  filter(!iso3 %in% countries_with_data) |>
+  distinct(iso3, name) |>
+  arrange(name) |>
+  mutate(
+    name = sub("\\s*\\(.*\\)$", "", name),
+    name = sub(", including east Jerusalem$", "", name)
+  ) |>
+  pull(name)
+no_base_names <- countries$name[!countries$iso3 %in% countries_with_base]
+
+coverage <- tibble(
+  Item = c(
+    "Countries with a Section 1 base", "Countries with IMF projections",
+    "2029 budget grows in currency but falls in real terms, IMF path", "No IMF series",
+    "No GHED base"
+  ),
+  Value = c(
+    length(countries_with_base),
+    length(countries_with_data),
+    world_2029$n_real_fall_only,
+    knitr::combine_words(no_imf_names, oxford_comma = FALSE),
+    knitr::combine_words(no_base_names, oxford_comma = FALSE)
+  )
+)
+tables <- list("Coverage" = coverage)
+show_tables(tables)
+```
+
+# Annex A. Every country's decomposition, by World Bank region
+
+Across the seven annex A slides, we list every country with its latest window, grouped by World Bank region: government health
+spending per person in the window's last year (constant 2023 US\$), the total change and its three parts in log points a
+year, the pattern (with an asterisk where health lost priority while the economy grew) and any data flag. Two regions
+are long enough to be split over two slides, alphabetically. Each slide gets its own chunk, built from one function, and
+prints the slide's table and the region line in its lead (the pattern counts and, for regions with at least eight
+countries, the median country's total). The slides are tables, so no figure is drawn. Inc.: Low, LM lower middle, UM
+upper middle, High; flags: B break, S shock, E extreme end, L level.
+
+```{r annex-helpers}
+## The seven slides shared by annexes A and B (which countries each
+## slide lists), and the annex A table.
+annex_slides <- tibble(
+  slide = 1:7,
+  lead_region = c(
+    "East Asia & Pacific", "Europe & Central Asia", "Europe & Central Asia",
+    "Latin America & Caribbean", "Middle East, North Africa, Afghanistan & Pakistan",
+    "Sub-Saharan Africa", "Sub-Saharan Africa"
+  ),
+  title = c(
+    "East Asia and Pacific; South Asia",
+    "Europe and Central Asia (1 of 2)",
+    "Europe and Central Asia (2 of 2); no World Bank region",
+    "Latin America and the Caribbean; North America",
+    "Middle East, North Africa, Afghanistan and Pakistan",
+    "Sub-Saharan Africa (1 of 2)",
+    "Sub-Saharan Africa (2 of 2)"
+  )
+)
+
+# Every country's place in the annexes: regions in the slides' order, countries alphabetical inside
+# a region, and the two long regions cut in half over two slides each
+region_order <- c(
+  "East Asia & Pacific", "South Asia", "Europe & Central Asia", "Not classified",
+  "Latin America & Caribbean", "North America",
+  "Middle East, North Africa, Afghanistan & Pakistan", "Sub-Saharan Africa"
+)
+annex_countries <- countries |>
+  left_join(short_names, by = "iso3") |>
+  mutate(
+    region = if_else(wb_region == "not_classified", "Not classified", wb_region),
+    inc = unname(INC_CODE[income_group])
+  ) |>
+  arrange(match(region, region_order), sort_name) |>
+  group_by(region) |>
+  mutate(first_half = row_number() <= ceiling(n() / 2)) |>
+  ungroup() |>
+  mutate(
+    annex_slide = case_when(
+      region %in% c("East Asia & Pacific", "South Asia") ~ 1,
+      region == "Europe & Central Asia" & first_half ~ 2,
+      region %in% c("Europe & Central Asia", "Not classified") ~ 3,
+      region %in% c("Latin America & Caribbean", "North America") ~ 4,
+      region == "Middle East, North Africa, Afghanistan & Pakistan" ~ 5,
+      region == "Sub-Saharan Africa" & first_half ~ 6,
+      region == "Sub-Saharan Africa" ~ 7
+    ),
+    annex_position = row_number()
+  ) |>
+  select(iso3, short, region, inc, annex_slide, annex_position)
+
+# Annex A, one slide: the region line of the slide's lead and the table of every country's latest
+# window. We keep this as a function because seven slides use it, each run a second time on the
+# report's tables in the final check; `bundle` is `mine` or the report's tables.
+annex_a <- function(bundle, slide) {
+  this_slide <- annex_slides[annex_slides$slide == slide, ]
+  lead_region <- this_slide$lead_region
+
+  # every country on the slide, in the order the slide lists them
+  slide_rows <- annex_countries |>
+    filter(annex_slide == slide) |>
+    left_join(bundle$win, by = "iso3") |>
+    arrange(annex_position) |>
+    mutate(has_window = !is.na(total))
+  table <- slide_rows |>
+    transmute(
+      Region = unname(REG_LABEL[region]),
+      Country = short,
+      Inc. = inc,
+      `US$` = if_else(has_window, dollars(ghe1, prefix = ""), ""),
+      Total = if_else(has_window, signed(total), ""),
+      Econ. = if_else(has_window, signed(econ), ""),
+      Govt = if_else(has_window, signed(budget), ""),
+      Prio. = if_else(has_window, signed(priority), ""),
+      Pattern = if_else(
+        has_window, paste0(pattern, if_else(lost_priority %in% TRUE, "*", "")), "Not available"
+      ),
+      Flag = if_else(has_window, coalesce(flag, ""), ""),
+      Window = if_else(has_window, paste0(y0, "-", y1), "no constant-price series")
+    )
+
+  # the lead: the pattern counts and, for a region with at least eight countries, the median total
+  counts <- filter(bundle$pat_reg, key == lead_region)
+  latest <- filter(bundle$grp, key == lead_region, period == "W")
+  median_text <- ""
+  if (grepl("^Carries", latest$status)) {
+    median_text <- paste0("; median country ", signed(latest$med_total), " log points a year")
+  }
+  lead <- paste0(
+    REG_LABEL[[lead_region]], ": ", counts$n, " countries, ",
+    counts$`Economy-led`, " economy-led, ", counts$`Budget-led`, " budget-led, ",
+    counts$`Priority-led`, " priority-led, ", counts$Declining, " declining", median_text
+  )
+
+  tables <- list("Lead of the slide" = data.frame(Region = lead))
+  tables[[paste0("Annex: ", this_slide$title)]] <- table
+  tables
+}
+```
+
+## Slide 22. Annex A1. East Asia and Pacific; South Asia
+
+*Kicker on the slide: Annex: every country, by World Bank region.*
+
+On the first annex slide, we list East Asia and Pacific and South Asia. Spending per person in the US\$ column runs from
+single digits in Myanmar and Bangladesh to several thousand dollars in Australia and New Zealand, and several small
+island series carry level or break flags.
+
+```{r slide-22-annex-a1, results = "asis"}
+## Slide 22, annex A1: East Asia and Pacific; South Asia.
+tables <- annex_a(mine, slide = 1)
+show_tables(tables)
+```
+
+## Slide 23. Annex A2. Europe and Central Asia (1 of 2)
+
+*Kicker on the slide: Annex: every country, by World Bank region.*
+
+We split Europe and Central Asia, the largest region, alphabetically over two slides; the first slide carries the first
+half of the list. Most countries in the region are economy-led, a larger share than in any other region, as the
+region line in the first table shows.
+
+```{r slide-23-annex-a2, results = "asis"}
+## Slide 23, annex A2: Europe and Central Asia, first half.
+tables <- annex_a(mine, slide = 2)
+show_tables(tables)
+```
+
+## Slide 24. Annex A3. Europe and Central Asia (2 of 2); no World Bank region
+
+*Kicker on the slide: Annex: every country, by World Bank region.*
+
+We show the second half of Europe and Central Asia, followed by the two countries with no World Bank region in the
+classification (the Cook Islands and Niue).
+
+```{r slide-24-annex-a3, results = "asis"}
+## Slide 24, annex A3: Europe and Central Asia, second half; countries without a World Bank region.
+tables <- annex_a(mine, slide = 3)
+show_tables(tables)
+```
+
+## Slide 25. Annex A4. Latin America and the Caribbean; North America
+
+*Kicker on the slide: Annex: every country, by World Bank region.*
+
+We show Latin America and the Caribbean, then North America. The region as a whole grew slowly, with a small economy part, and
+Venezuela's window is shorter than ten years because its series has all three parts only from 2018.
+
+```{r slide-25-annex-a4, results = "asis"}
+## Slide 25, annex A4: Latin America and the Caribbean; North America.
+tables <- annex_a(mine, slide = 4)
+show_tables(tables)
+```
+
+## Slide 26. Annex A5. Middle East, North Africa, Afghanistan and Pakistan
+
+*Kicker on the slide: Annex: every country, by World Bank region.*
+
+We show the Middle East, North Africa, Afghanistan and Pakistan. Several countries in the region carry data flags, among them
+Afghanistan, Lebanon, Syria and Yemen, so the totals of those countries are best read with the flags in view.
+
+```{r slide-26-annex-a5, results = "asis"}
+## Slide 26, annex A5: Middle East, North Africa, Afghanistan and Pakistan.
+tables <- annex_a(mine, slide = 5)
+show_tables(tables)
+```
+
+## Slide 27. Annex A6. Sub-Saharan Africa (1 of 2)
+
+*Kicker on the slide: Annex: every country, by World Bank region.*
+
+We show the first half of the alphabetical list for Sub-Saharan Africa. The region counts more declining countries than any other
+region, and as a whole the region's growth came mostly from health priority rather than from the economy.
+
+```{r slide-27-annex-a6, results = "asis"}
+## Slide 27, annex A6: Sub-Saharan Africa, first half.
+tables <- annex_a(mine, slide = 6)
+show_tables(tables)
+```
+
+## Slide 28. Annex A7. Sub-Saharan Africa (2 of 2)
+
+*Kicker on the slide: Annex: every country, by World Bank region.*
+
+We show the second half of Sub-Saharan Africa. South Sudan's window is shorter than ten years.
+
+```{r slide-28-annex-a7, results = "asis"}
+## Slide 28, annex A7: Sub-Saharan Africa, second half.
+tables <- annex_a(mine, slide = 7)
+show_tables(tables)
+```
+
+# Annex B. Every country's prescription for 2029, by World Bank region
+
+Across the seven annex B slides, we give every country's prescription for 2029 on the IMF path, in the same slide sets as annex A:
+health's share of government spending (held from the end of the window to 2026); the protect amount, upper ask and
+ceiling (P / A / C) in US\$ million at the IMF's 2029 exchange rate and as a real increase in per cent of the 2026 health
+budget; the candidate that sets the upper ask; and the years in which the method does not apply. The lead of each slide
+gives the region's median protect amount, upper ask and ceiling. "No IMF series" marks a country without IMF projections;
+"Not available" in the US\$ column marks a country without an IMF exchange rate for 2029 (Bolivia and Pakistan), whose
+real percentages are still available. Each slide gets its own chunk; the slides are tables, so no figure is drawn.
+
+```{r annex-b-helper}
+## Annex B: the table of one slide, printing the 2029 prescription row by row.
+SET_SHORT <- c(
+  "+0.75 a year" = "+0.75", "+0.5 a year" = "+0.5", "+0.25 a year" = "+0.25",
+  "Own trend" = "Own trend", "No admissible increase" = "None admissible", "Does not apply" = "-"
+)
+
+# Annex B, one slide: the region line of the slide's lead and the table of every
+# country's 2029 prescription (IMF path). A function for the same reason as annex_a();
+# `bundle` is `mine` or the report's tables.
+annex_b <- function(bundle, slide) {
+  this_slide <- annex_slides[annex_slides$slide == slide, ]
+  imf_path <- filter(bundle$rx, variant == "imf")
+
+  # the years from 2027 to 2029 in which the method does not apply
+  years_not_applying <- imf_path |>
+    filter(has_data %in% TRUE, !(applies %in% TRUE)) |>
+    arrange(year) |>
+    group_by(iso3) |>
+    summarise(not_apply = paste(year, collapse = ", "))
+
+  # Every country on the slide with its 2029 row. A country without a GHED base (Cuba) has no row
+  # and is listed with nothing computed. Amounts are in US$ million, and the real rise in % of the
+  # 2026 health budget, for the protect amount, the upper ask and the ceiling (P / A / C).
+  slide_rows <- annex_countries |>
+    filter(annex_slide == slide) |>
+    left_join(filter(imf_path, year == 2029), by = "iso3") |>
+    left_join(years_not_applying, by = "iso3") |>
+    arrange(annex_position) |>
+    mutate(
+      has_base = !is.na(variant),
+      with_data = has_data %in% TRUE,
+      usd_protect = coalesce(dollars(d_protect_usd / 1e6, prefix = ""), "-"),
+      usd_ask = coalesce(dollars(ask_usd / 1e6, prefix = ""), "-"),
+      usd_ceiling = coalesce(dollars(d_all_usd / 1e6, prefix = ""), "-"),
+      pct_protect = coalesce(scales::comma(d_protect_pct, accuracy = 1), "-"),
+      pct_ask = coalesce(scales::comma(ask_pct, accuracy = 1), "-"),
+      pct_ceiling = coalesce(scales::comma(d_all_pct, accuracy = 1), "-")
+    )
+  table <- slide_rows |>
+    transmute(
+      Region = unname(REG_LABEL[region]),
+      Country = short,
+      Inc. = inc,
+      `Share %` = if_else(has_base, one_decimal(h), ""),
+      `US$ million P / A / C` = case_when(
+        !has_base ~ "No GHED base",
+        !with_data ~ "No IMF series",
+        is.na(d_protect_usd) ~ "Not available",
+        .default = paste(usd_protect, usd_ask, usd_ceiling, sep = " / ")
+      ),
+      `Real % P / A / C` = if_else(
+        with_data, paste(pct_protect, pct_ask, pct_ceiling, sep = " / "), ""
+      ),
+      `Ask set by` = if_else(with_data, unname(SET_SHORT[setter_label]), ""),
+      `Does not apply` = if_else(with_data, coalesce(not_apply, "-"), "")
+    )
+
+  # the lead: the region's median protect amount, upper ask and ceiling
+  medians <- filter(bundle$rx_grp, key == this_slide$lead_region, variant == "imf", year == 2029)
+  lead <- paste0(
+    REG_LABEL[[this_slide$lead_region]], ", median of ", medians$n,
+    ": protect ", share_pct(medians$med_d_protect_pct),
+    ", upper ask ", share_pct(medians$med_ask_pct),
+    ", ceiling ", whole_pct(medians$med_d_all_pct), " of the 2026 health budget, real"
+  )
+
+  tables <- list("Lead of the slide" = data.frame(Region = lead))
+  tables[[paste0("Annex: ", this_slide$title)]] <- table
+  tables
+}
+```
+
+## Slide 29. Annex B1. East Asia and Pacific; South Asia
+
+*Kicker on the slide: Annex: the prescription by country, 2029.*
+
+We show East Asia and Pacific and South Asia. South Asia's median ceiling is the largest of any region relative to the health
+budget: the ceiling is all the growth in government spending, while the health budget is only health's share of that
+spending.
+
+```{r slide-29-annex-b1, results = "asis"}
+## Slide 29, annex B1: East Asia and Pacific; South Asia.
+tables <- annex_b(mine, slide = 1)
+show_tables(tables)
+```
+
+## Slide 30. Annex B2. Europe and Central Asia (1 of 2)
+
+*Kicker on the slide: Annex: the prescription by country, 2029.*
+
+We show the first half of Europe and Central Asia. Health's share is higher in much of the region, so the ceiling is a smaller
+multiple of the protect amount than in South Asia or Sub-Saharan Africa.
+
+```{r slide-30-annex-b2, results = "asis"}
+## Slide 30, annex B2: Europe and Central Asia, first half.
+tables <- annex_b(mine, slide = 2)
+show_tables(tables)
+```
+
+## Slide 31. Annex B3. Europe and Central Asia (2 of 2); no World Bank region
+
+*Kicker on the slide: Annex: the prescription by country, 2029.*
+
+We show the second half of Europe and Central Asia, then the two countries without a World Bank region (the Cook Islands and
+Niue); neither country has an IMF series.
+
+```{r slide-31-annex-b3, results = "asis"}
+## Slide 31, annex B3: Europe and Central Asia, second half; countries without a World Bank region.
+tables <- annex_b(mine, slide = 3)
+show_tables(tables)
+```
+
+## Slide 32. Annex B4. Latin America and the Caribbean; North America
+
+*Kicker on the slide: Annex: the prescription by country, 2029.*
+
+We show Latin America and the Caribbean, then North America. Cuba has no GHED base and so no prescription; Ecuador and
+Venezuela have no IMF series.
+
+```{r slide-32-annex-b4, results = "asis"}
+## Slide 32, annex B4: Latin America and the Caribbean; North America.
+tables <- annex_b(mine, slide = 4)
+show_tables(tables)
+```
+
+## Slide 33. Annex B5. Middle East, North Africa, Afghanistan and Pakistan
+
+*Kicker on the slide: Annex: the prescription by country, 2029.*
+
+We show the Middle East, North Africa, Afghanistan and Pakistan. Several countries here have no IMF series, and Pakistan has real
+percentages but no US\$ amounts because the IMF gives no 2029 exchange rate.
+
+```{r slide-33-annex-b5, results = "asis"}
+## Slide 33, annex B5: Middle East, North Africa, Afghanistan and Pakistan.
+tables <- annex_b(mine, slide = 5)
+show_tables(tables)
+```
+
+## Slide 34. Annex B6. Sub-Saharan Africa (1 of 2)
+
+*Kicker on the slide: Annex: the prescription by country, 2029.*
+
+We show the first half of Sub-Saharan Africa. Ceilings in per cent are large where health's share is low, and the countries where the
+method does not apply in some year show those years in the last column.
+
+```{r slide-34-annex-b6, results = "asis"}
+## Slide 34, annex B6: Sub-Saharan Africa, first half.
+tables <- annex_b(mine, slide = 6)
+show_tables(tables)
+```
+
+## Slide 35. Annex B7. Sub-Saharan Africa (2 of 2)
+
+*Kicker on the slide: Annex: the prescription by country, 2029.*
+
+We close the deck with the second half of Sub-Saharan Africa.
+
+```{r slide-35-annex-b7, results = "asis"}
+## Slide 35, annex B7: Sub-Saharan Africa, second half.
+tables <- annex_b(mine, slide = 7)
+show_tables(tables)
+```
+
+# Check against the report's outputs
+
+In the final chunk, we run every slide chunk a second time, now on the report's own output tables (the tables the deck was
+built from), and compare the two results cell by cell as each cell would be printed, to the printed decimal. The table counts
+the numbers compared on each slide (every number inside a cell, including years and counts) and the cells of text, such
+as country names and pattern labels. Any mismatch stops the render with an error and lists the cells that differ.
+
+```{r check-against-report, results = "asis"}
+## Final check: every number the slides print, computed in this file, against the same
+## number recomputed from the report's output tables (data/reference_outputs.rds).
+## Stops with an error on any mismatch.
+reference <- readRDS("data/reference_outputs.rds")
+stopifnot(all(REF_NAMES %in% names(reference)))
+report_tables <- reference[REF_NAMES]
+names(report_tables) <- names(REF_NAMES) # the same names as in `mine`
+
+# We read the code of the 34 slide chunks from this file: from the Rmd being knitted, or from the
+# file in this folder when the chunks are run one by one in RStudio
+rmd_file <- knitr::current_input()
+if (is.null(rmd_file)) rmd_file <- "global-decomposition-deck.Rmd"
+rmd_lines <- readLines(rmd_file, encoding = "UTF-8")
+chunk_starts <- grep("^```\\{r slide-[0-9]+", rmd_lines)
+chunk_ends <- grep("^```\\s*$", rmd_lines)
+stopifnot(length(chunk_starts) == 34)
+
+# all the cells of a slide's tables, as they are printed, table by table and column by column
+cells <- function(tables) {
+  printed <- character(0)
+  for (table in tables) {
+    for (column in table) printed <- c(printed, as.character(column))
+  }
+  printed
+}
+
+# We run each slide chunk twice more, each time in an environment of its own: once on this
+# file's tables, and once with `mine` replaced by the report's tables. A run leaves the
+# slide's tables in `tables`; capture.output() drops what the run prints, and invisible()
+# keeps its figure from being drawn again.
+result <- NULL
+details <- list()
+for (start in chunk_starts) {
+  slide_id <- sub("^```\\{r (slide-[0-9]+).*$", "\\1", rmd_lines[start])
+  end <- min(chunk_ends[chunk_ends > start])
+  slide_code <- parse(text = rmd_lines[(start + 1):(end - 1)])
+  this_run <- new.env()
+  report_run <- new.env()
+  report_run$mine <- report_tables
+  capture.output(invisible(eval(slide_code, this_run)))
+  capture.output(invisible(eval(slide_code, report_run)))
+
+  # a cell differs if only one side is missing, or if both are there and differ
+  ours <- cells(this_run$tables)
+  theirs <- cells(report_run$tables)
+  if (length(ours) != length(theirs)) {
+    differ <- seq_along(ours)
+  } else {
+    missing_differs <- is.na(ours) != is.na(theirs)
+    value_differs <- !is.na(ours) & !is.na(theirs) & ours != theirs
+    differ <- which(missing_differs | value_differs)
+  }
+  if (length(differ) > 0) {
+    details[[slide_id]] <- data.frame(
+      slide = slide_id,
+      this_file = ours[differ],
+      report = theirs[differ][seq_along(differ)]
+    )
+  }
+
+  # every number inside a cell counts, including years and counts
+  numbers_in_cells <- regmatches(ours, gregexpr("[0-9][0-9,]*(\\.[0-9]+)?", ours))
+  result <- rbind(result, data.frame(
+    Slide = sub("slide-", "Slide ", slide_id),
+    `Numbers compared` = sum(lengths(numbers_in_cells)),
+    `Text cells compared` = sum(!grepl("[0-9]", ours)),
+    Mismatches = length(differ),
+    Result = if (length(differ) > 0) "FAIL" else "pass",
+    check.names = FALSE
+  ))
+}
+all_slides <- data.frame(
+  Slide = "All slides",
+  `Numbers compared` = sum(result$`Numbers compared`),
+  `Text cells compared` = sum(result$`Text cells compared`),
+  Mismatches = sum(result$Mismatches),
+  Result = if (all(result$Result == "pass")) "pass" else "FAIL",
+  check.names = FALSE
+)
+result <- rbind(result, all_slides)
+cat("\n\n")
+print(knitr::kable(
+  result,
+  caption = "Printed numbers: this file against the report's outputs", align = "lrrrl"
+))
+cat("\n\n")
+if (length(details) > 0) {
+  differences <- bind_rows(details)
+  print(knitr::kable(differences, caption = "Cells that differ"))
+  stop(
+    "The numbers printed by this file differ from the report's outputs on ", length(details),
+    " slide(s)."
+  )
+}
+```
+
+```{r packages}
+## The R and package versions this file was rendered with.
+packages <- c("dplyr", "tidyr", "scales", "ggplot2", "knitr", "rmarkdown", "systemfonts", "ragg")
+r_version <- as.character(getRversion())
+versions <- data.frame(software = "R", version = r_version)
+for (package in packages) {
+  package_version <- as.character(utils::packageVersion(package))
+  versions <- rbind(versions, data.frame(software = package, version = package_version))
+}
+versions
+```
