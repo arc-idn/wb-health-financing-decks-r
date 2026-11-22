@@ -1,6 +1,6 @@
 ---
-title: "Country health financing profile, Policymaker deck"
-subtitle: "Every number and figure of the 22 slides, rebuilt from data for one country"
+title: "Country Health Financing Profile | Policy Brief"
+subtitle: "Public expenditure, health system performance, and fiscal space for health"
 author: "Farizal R. Muharram"
 date: "November 2026"
 params:
@@ -16,26 +16,26 @@ output:
     mathjax: null
 ---
 
-# What this file does
+# Scope and purpose
 
-The Policymaker version of the country health financing profile examines fourteen questions that ministries of finance and health discuss together: how large the health budget is and what accounted for its change over ten years, how the country's health spending relates to health and financial protection, whether funding reaches health workers, medicines and services, how funds are pooled and providers paid, how much more economic growth and a higher health share of the budget could provide by 2031, and what additional funding might buy. The deck answers these questions in 22 slides: a cover, a contents page, fourteen main slides, an annex on the main performance gap, and six annex slides repeating the money slides at market exchange rates in US$.
+This country health financing profile provides an integrated assessment of public financing, health system performance, and opportunities to expand fiscal space for health. It addresses fourteen policy questions spanning the level and drivers of government health expenditure, progress in health outcomes and financial protection, the allocation of resources to essential services and inputs, pooling and purchasing arrangements, and the potential contribution of economic growth and stronger health prioritisation to future spending. The assessment includes a core set of policy sections, a comparative analysis of performance gaps, and supplementary results expressed in US dollars.
 
-We rebuild every number the slides print and draw the main figure of each slide. We set the country with the header's `iso` code. Changing it, or calling `rmarkdown::render("country-financing-brief.Rmd", params = list(iso = "ETH"))`, rebuilds the document for another country. The last section checks the numbers against the deck's text for the fifteen countries whose deck text is stored with the data.
+The analysis is country-specific and reproducible. The country is selected through the `iso` parameter in the document header; for example, `rmarkdown::render("country-financing-brief.Rmd", params = list(iso = "ETH"))` produces the Ethiopia profile. Calculated indicators and visualisations are generated from the underlying datasets, with an additional consistency assessment for the fifteen countries for which reference materials are available.
 
-**Data.** Everything the file reads is in `data/` as RDS files, read with relative paths, and `data/README.md` describes each one. The sources are the WHO Global Health Expenditure Database (2025 update), WHO health accounts by function, the World Bank's World Development Indicators and income groups, WHO and World Bank UHC monitoring (service coverage and financial hardship), WHO national health workforce accounts, the IMF World Economic Outlook (October 2026) and its government finance statistics, the UN World Population Prospects 2024, and provider payment records. Nothing is downloaded while the file runs.
+**Sources.** The analysis draws on the WHO Global Health Expenditure Database (2025 update) and health accounts by function; World Bank World Development Indicators, income classifications, and WHO and World Bank UHC monitoring data; WHO national health workforce accounts; the IMF World Economic Outlook (October 2026) and government finance statistics; UN World Population Prospects 2024; and compiled provider payment information. Source datasets are stored locally as RDS files in `data/`, with further documentation in `data/README.md`. The analysis does not require live data downloads.
 
-**How to run it.** Open the folder in RStudio (or make it the working directory) and knit `country-financing-brief.Rmd`. From a terminal: `Rscript -e 'rmarkdown::render("country-financing-brief.Rmd", params = list(iso = "KEN"))'`. A run takes under a minute.
+**Reproducibility.** The document can be rendered from RStudio or from the command line using `Rscript -e 'rmarkdown::render("country-financing-brief.Rmd", params = list(iso = "KEN"))'`. Relative file paths require the project folder to be the working directory.
 
-**Packages.** rmarkdown, knitr, dplyr, tidyr, tibble, scales, ggplot2, ggrepel, systemfonts and ragg (R 4.1 or later). The figures use Open Sans, bundled in `fonts/` under the SIL Open Font Licence, so no font has to be installed.
+**Technical requirements.** The workflow uses R 4.1 or later and the rmarkdown, knitr, dplyr, tidyr, tibble, scales, ggplot2, ggrepel, systemfonts, and ragg packages. Figures use Open Sans, provided in `fonts/` under the SIL Open Font Licence.
 
-**Conventions on every slide.**
+**Analytical conventions.**
 
-* The year. Every "latest" value is taken at or before 2023, the deck's default year.
-* Comparators. The country's World Bank income group, the country included. A median is published only when at least 8 members report and they are at least 70% of the group, the rule the website applies to every statistic.
-* Money. The country's own amounts are in its currency at constant 2023 prices: GHED's US$ figure times GHED's 2023 exchange rate (GDP in national currency over GDP in US$). Levels compared across countries are in PPP international dollars. The annex repeats the money slides in US$.
-* Rounding. JavaScript, which draws the deck, rounds a half away from zero on the shortest decimal form of a number. R's `formatC()` rounds the stored binary value instead, so `num()` nudges such a number up by two units in its last place before rounding, and a printed "0.13" here is a printed "0.13" on the slide.
+* **Reference period:** Unless stated otherwise, the latest available observation is no later than 2023.
+* **Peer comparisons:** Comparisons use the country’s World Bank income group, including the country itself. Group medians are reported only when at least eight members provide data and reporting countries account for at least 70% of group membership.
+* **Price and currency basis:** Country expenditure amounts are expressed in national currency at constant 2023 prices, using GHED exchange rates and deflators. International comparisons use purchasing power parity (PPP) international dollars. Equivalent monetary results in US dollars are presented in the annex.
+* **Numerical precision:** Displayed values follow a consistent decimal rounding convention. The `num()` function reconciles differences between JavaScript decimal rounding and R’s binary floating-point representation to maintain consistent reported figures.
 
-# Setup
+# Analytical setup
 
 ```{r setup, message = FALSE, warning = FALSE}
 # We shape the data with dplyr and tidyr, draw with ggplot2 and ggrepel, and use systemfonts
@@ -111,9 +111,9 @@ theme_deck <- function(base_size = 12) {
 }
 ```
 
-# Data
+# Source data
 
-We keep the financing panel as a long table, with one row per country, indicator and year with a published value; missing years are absent, never zero. The outcome series follows the same structure. For lookups and joins we use a wide copy, one row per country and year, so the file stays quick when a slide fits a line across every country in several years.
+The financing and outcome datasets are organised by country, indicator, and year. Unreported observations remain missing rather than being imputed as zero. For calculations requiring multiple indicators within a given country-year, the financing series is also represented in a wide format.
 
 ```{r data}
 # We read every input from data/ by relative path
@@ -143,13 +143,13 @@ flags <- readRDS("data/country_flags.rds") # GHED years with a negative private 
 fin_wide <- pivot_wider(fin, names_from = code, values_from = value)
 ```
 
-# Shared computations
+# Methods and analytical framework
 
-We use shared calculations across the slides: the spending identity in one year, its change over ten years, two cross-country fits, medians, and the fiscal projection. We make each calculation once, in the deck's order, and explain each rule.
+The assessment combines an accounting decomposition of public health expenditure, changes over time, cross-country benchmarking of health and financial protection, analysis of spending and service inputs, and forward-looking fiscal scenarios. The methods below specify the indicators, reporting thresholds, and assumptions used throughout the country profile.
 
-## Statistics and number formats
+## Statistical definitions and presentation
 
-We calculate medians and quartiles as the deck does: the plain median and the quartile that interpolates between ranks (R's type 7). We fit lines with `lm()`. We print numbers with `formatC()`, which groups thousands with commas. JavaScript, which draws the deck, rounds the shortest decimal form of a number half away from zero (2.675 to 2.68). To match that rule, `num()` first moves such a number up by two units in its last place before rounding.
+Group statistics use standard medians and type-7 interpolated quartiles. Cross-country associations are estimated using ordinary least squares (`lm()`). Numerical outputs use `formatC()` with consistent decimal precision and thousands separators; the `num()` function adjusts floating-point edge cases to reproduce decimal rounding of values such as 2.675 to 2.68.
 
 ```{r helpers-numbers}
 # The income-group median as the website publishes it. median() does the arithmetic; we add
@@ -191,11 +191,11 @@ num <- function(x, digits = 1, prefix = "", suffix = "", plus = FALSE) {
 slide_values <- list()
 ```
 
-## The country, its comparators and its currency
+## Country classifications, comparators, and currencies
 
-We use the country's short form in running text: the name without a bracketed part, or the ISO code when that name is still longer than 24 characters. We compare the country with members of its income group, including the country itself, and use the members of its World Bank region to choose the four countries named on the scatter charts.
+Country labels use a shortened official name, or the ISO code for names exceeding 24 characters. Income-group comparisons include all eligible countries within the same World Bank income classification. Regional comparison countries are selected by proximity in health expenditure, subject to the eligibility conditions described below.
 
-We convert to local currency with exact identities on GHED's own figures. A 2023 amount in US$ times GHED's 2023 rate gives the amount in national currency at 2023 prices. We convert another year's current US$ amount at that year's rate and deflate it with GHED's GDP price index. We use no rate that GHED does not publish. A country without a 2023 rate (Cuba) shows US$ on every slide, as the deck does.
+Expenditure in national currency is derived from the GHED series using the exchange rate and GDP deflator applicable to each year, with 2023 as the price base. Cross-country expenditure comparisons are expressed in PPP international dollars. Missing exchange rates are not inferred; where the 2023 GHED exchange rate is unavailable, as for Cuba, monetary results are presented in US dollars.
 
 ```{r context}
 MAX_YEAR <- 2023 # the deck's default year: every latest value is at or before it
@@ -346,11 +346,11 @@ LEAD_LIMIT <- 2 * 1380 * 0.92 # two lines of 1,380 px, less the deck's 8% margin
 poss <- function(name) ifelse(grepl("s$", name), paste0(name, "'"), paste0(name, "'s"))
 ```
 
-## The spending identity in one year
+## Accounting framework for public health expenditure
 
-GHED's figures satisfy an exact spending identity: government health spending per person equals GDP per person times government spending as a share of GDP times health's share of government spending. The comparison uses the latest year at or before 2023 when the country has all three factors and the income group has a publishable median for each; otherwise, we use the country's latest complete year without a comparison.
+Government health expenditure per person can be expressed as the product of GDP per person, total government expenditure as a share of GDP, and health expenditure as a share of government expenditure. Comparisons use the latest complete country-year up to 2023 for which the corresponding income-group medians are reportable. Where peer estimates are unavailable, the latest complete country observation is retained without a peer comparison.
 
-We can split government spending into revenue and fiscal stance (spending per unit of revenue), because spending equals revenue plus net borrowing. We calculate revenue as GHED government spending plus IMF net lending. We omit the split when IMF revenue differs from that sum by more than 5 points of GDP (8 of 148 countries in 2023), avoiding conflicting slide figures.
+Government expenditure can be further decomposed into revenue and a fiscal stance term (expenditure relative to revenue), given the relationship between revenue, spending, and net borrowing. Revenue is estimated as government expenditure plus IMF net lending. This additional decomposition is excluded when the resulting revenue differs from IMF-reported revenue by more than five percentage points of GDP, a discrepancy observed in 8 of 148 countries in 2023.
 
 ```{r identity}
 SHORT_RATIO <- 0.95 # a step more than 5% below its median is a shortfall
@@ -403,9 +403,9 @@ if (ID$ready) {
 }
 ```
 
-## The binding fiscal constraint
+## Identifying the principal fiscal constraint
 
-We value each budget step by setting it to the same-year income-group median while holding the other steps at the country's values. We count a fiscal step (revenue or fiscal stance, or government spending where revenue cannot be split) more than 5% below its median as a constraint; the primary constraint is the one with the greatest value. We compare health's share with its median but do not rank it here, because a below-peer share alone does not show that health could take more of the budget; we assess that question separately. These are distances on an identity, not forecasts.
+The contribution of each fiscal component is assessed by replacing its observed value with the same-year income-group median, while holding all other components constant. Revenue, fiscal stance, or aggregate government spending is considered a potential constraint when it falls more than 5% below the corresponding peer median. The component with the largest implied spending gain is classified as the principal fiscal constraint. Health’s budget share is assessed separately because a value below the peer median does not by itself establish that greater prioritisation is fiscally feasible. These comparisons describe accounting gaps, not projected policy effects.
 
 ```{r constraint}
 Q09 <- list(ready = ID$ready && is.finite(ID$ghe_pc), year = ID$year, peer_ok = ID$peer_ok)
@@ -491,11 +491,11 @@ if (Q09$ready) {
 }
 ```
 
-## Ten years of change
+## Decomposing changes over the previous decade
 
-We decompose the change in real government health spending per person into three parts that sum exactly under the identity above: GDP per person, government spending as a share of GDP, and health's share of government spending. Each part is an average annual change in log points (times 100). We end the window in the latest year at or before 2023 with all parts and start ten years earlier, or later if needed, but never less than five years before the end. For real terms we use GHED's own conversion for each country and year, constant 2023 US$ over current US$, so growth rates match local currency.
+Changes in real government health expenditure per person are attributed to three accounting components: real GDP per person, the government expenditure share of GDP, and the health share of government expenditure. Contributions are expressed as average annual log-point changes (multiplied by 100) and sum exactly to the change in expenditure. The reference period ends in the latest complete year no later than 2023 and extends back up to ten years, subject to a minimum five-year window. Real growth rates are based on GHED constant-price conversions, ensuring consistency with national-currency expenditure trends.
 
-We use the same window for the direction slide's outcome rows. For each measure, we take the gap to the income-group median at the start and end (as a ratio for mortality, a difference for coverage), then call it narrowing, widening or steady under the deck's thresholds: 5% for a mortality ratio, 2 points of the coverage index, 1 point of financial hardship.
+Health outcomes and financial protection are assessed over the same period, comparing the distance from the income-group median at the beginning and end. Mortality gaps are expressed as ratios, while coverage gaps are measured in percentage points. A change is classified as narrowing, widening, or broadly stable using thresholds of 5% for mortality ratios, two points for the UHC service coverage index, and one percentage point for financial hardship.
 
 ```{r trends}
 WINDOW <- 10 # the window: ten years
@@ -740,13 +740,13 @@ if (nrow(TR$rows) == 0) {
 }
 ```
 
-## Health for spending: the cross-country fit
+## Health outcomes relative to expenditure
 
-For each health-for-spending measure, we fit a least-squares line relating the outcome (natural log for the three mortality rates) to the base-10 log of current health spending per person across all countries with both values in the same year. The fit year is the latest at or before 2023 when at least 150 countries publish spending, premature NCD mortality and two of the three mortality measures. Premature NCD mortality ends in 2021, so the fit year is 2021 for most countries. Each fit requires at least 100 countries.
+Cross-country benchmarks relate health outcomes to the base-10 logarithm of current health expenditure per person. For premature NCD, under-five, and maternal mortality, the dependent variable is the natural logarithm of the mortality rate. Models use countries with contemporaneous observations and at least 100 eligible observations per outcome. The benchmark year is the latest year no later than 2023 in which at least 150 countries report expenditure, premature NCD mortality, and at least two of the three mortality indicators. Because the premature NCD series ends in 2021, the reference year is generally 2021.
 
-We calculate a country's z score as its gap to the line divided by the fit's residual standard deviation, signed so positive is better. The health score is the mean z of premature NCD, under-five and maternal mortality, using at least two; we fit and show coverage but exclude it from the score. We score a country without data in the fit year in its latest year within five years before the fit year, against that year's own fit. We choose the four comparators as the region's countries closest in log spending, filling from the income group, and include only countries of at least a million people when the country itself has a million or more.
+Performance relative to the fitted relationship is standardised by the model’s residual standard deviation, with positive scores indicating better-than-expected outcomes. The composite health score averages the standardised gaps for premature NCD, under-five, and maternal mortality, requiring at least two available indicators. Service coverage is displayed as contextual information but excluded from the composite. When country data are unavailable for the benchmark year, the most recent observation within the preceding five years is evaluated against the corresponding year-specific relationship. Comparison countries are chosen primarily from the same region by similarity in log expenditure, with income-group countries used where needed; for countries with at least one million residents, comparators must also meet that population threshold.
 
-We fit twice, with spending at market exchange rates (annex A3) and in current PPP international dollars (slide 5), restricting the PPP fit to countries that also publish the US$ figure so both fits use the same countries.
+Separate benchmarks are estimated using expenditure in current PPP international dollars (main assessment) and current US dollars at market exchange rates (Annex A3). The PPP analysis is restricted to countries with corresponding US-dollar observations so that differences reflect the currency basis rather than changes in sample composition.
 
 ```{r health-fit}
 MEASURES <- data.frame(
@@ -941,11 +941,11 @@ HEALTH_USD <- HEALTH$usd
 HEALTH_PPP <- HEALTH$ppp
 ```
 
-## Financial protection for spending: the survey fit
+## Financial protection relative to public spending
 
-Financial hardship is a survey measure published only every few years. We use each country's latest survey since 2000 (at or before 2023) with same-year government health spending per person. We express spending in constant 2023 dollars so surveys from different years share one scale: constant 2023 US$ for annex A4 and constant 2023 PPP dollars for slide 6 (the US$ figure times the country's 2023 ratio of PPP to US$ spending, equal to constant 2023 national-currency spending over the 2023 PPP factor).
+Financial hardship indicators are derived from household surveys conducted intermittently. Each country contributes its latest survey from 2000 through 2023, paired with government health expenditure per person in the same year. To make observations from different survey years comparable, spending is expressed in constant 2023 PPP international dollars for the main assessment and constant 2023 US dollars for Annex A4. The PPP conversion applies the country’s 2023 ratio of PPP to US-dollar expenditure, equivalent to the national-currency amount divided by its 2023 PPP conversion factor.
 
-We fit the typical hardship rate as a straight line on log spending, floored at zero. For a country without the 2025 hardship measure, we use the older measure of spending more than 10% of the household budget on health and fit it separately. The z score is the typical level minus the country's value, over the residual standard deviation; positive means less hardship than typical.
+The expected financial hardship rate is estimated as a linear function of log expenditure, with predicted values constrained to a minimum of zero. If the revised 2025 hardship indicator is unavailable, the earlier indicator (households spending more than 10% of their budget on health) is used in a separate model. The financial protection score is the standardised difference between the expected and observed hardship rates; positive values indicate less financial hardship than the cross-country benchmark.
 
 ```{r protection-fit}
 # Government health spending per person in constant 2023 dollars, every country and year:
@@ -1074,9 +1074,9 @@ PROT_USD <- PROT$usd
 PROT_PPP <- PROT$ppp
 ```
 
-## The two scores together
+## Interpreting the combined performance scores
 
-We call a dimension a gap when its score is 0.5 or more below zero, the rule both slides use for a result worse or weaker than typical. For the selected country, we read the two fits' verdicts as they stand.
+A performance deficit is identified when the standardised score for health outcomes or financial protection is -0.5 or lower. Applying this threshold to both dimensions distinguishes countries with no identified deficit, a health outcomes deficit, a financial protection deficit, or deficits in both dimensions. These classifications reflect relative cross-country performance rather than causal estimates.
 
 ```{r performance-gap}
 GAP <- list()
@@ -1132,11 +1132,11 @@ GAP_USD <- GAP$usd
 GAP_PPP <- GAP$ppp
 ```
 
-## Budgets, services and the health workforce
+## Spending, service coverage, and health workforce
 
-We compare government health spending per person with the income-group median in the latest year when both exist, in current US$ (annex A5) and current PPP international dollars (slide 8). For service coverage and workforce, we use each country's latest value in the ten years to 2023; the median uses members' latest values in that window. Values more than 10% below the median are shortfalls.
+Government health expenditure per person is benchmarked against the income-group median in the latest year with sufficient data, using PPP international dollars for the main assessment and US dollars for Annex A5. Service coverage and workforce comparisons use each country’s most recent observation within the ten years to 2023. The peer median is calculated from the latest eligible observation for each group member, and values more than 10% below that median are flagged as shortfalls.
 
-On the workforce slide, we add doctors to nurses and midwives only in a year when both are reported. Each year's median uses members' latest combined value in the five years to that year; a same-year median would fail the reporting rule in most years.
+Combined health workforce density includes doctors, nurses, and midwives only when both professional series are available for the same year. The peer benchmark for any given year uses each country’s most recent combined estimate during the preceding five years, avoiding the substantial loss of coverage that would arise from requiring observations in exactly the same year.
 
 ```{r services-workforce}
 SVC_IDS <- c("uhc", "measles", "births", "tb_success", "art")
@@ -1267,11 +1267,11 @@ phys_last <- tail(filter(own_wf, code == "SH.MED.PHYS.ZS"), 1)
 nurse_last <- tail(filter(own_wf, code == "SH.MED.NUMW.P3"), 1)
 ```
 
-## Medicines, prevention and need
+## Medicines, prevention, and population needs
 
-The medicine measure covers purchases outside a visit or stay (WHO health accounts, line HC.5.1) over the ten years to 2023; the median uses members' latest values. For the prevention-to-treatment comparison, we use the first available source in this order: WHO health accounts for government spending (preventive care HC.6 against curative care HC.1), IMF general government spending by function (public health against hospital and outpatient services), then WHO health accounts from all sources. We exclude the IMF series if its public health share ever exceeds 35%, changes by more than 20 points in one year, or leaves half of the latest year unclassified. Such series reflect spending classifications rather than what the spending buys.
+Expenditure on medicines and other medical goods purchased outside consultations or inpatient stays follows WHO health accounts category HC.5.1, covering the ten years to 2023. Peer comparisons use each country’s latest eligible value. The prevention-treatment assessment prioritises, in order, government-financed WHO health accounts (HC.6 preventive care versus HC.1 curative care), IMF government expenditure by function (public health versus hospital and outpatient services), and WHO health accounts for all financing sources. IMF observations are excluded when the reported public health share exceeds 35%, changes by more than 20 percentage points within a year, or leaves more than half of expenditure unclassified in the most recent year, because such patterns may reflect inconsistent classification rather than substantive resource allocation.
 
-We read need from eleven burden and coverage measures, each divided by the income-group median of the same year (for survey measures, the latest value in ten years). We turn coverage into the share not reached, counting gaps under 5 points as 5 so that a near-universal service does not produce a large ratio from a tiny difference.
+Population needs are assessed using eleven indicators of disease burden and service coverage relative to the corresponding income-group median. Survey indicators use the latest available observation within ten years. For coverage measures, the relevant quantity is the population share not reached; gaps smaller than five percentage points are treated as five points to avoid disproportionate ratios when coverage is nearly universal.
 
 ```{r medicines-prevention-need}
 recent <- MAX_YEAR - 10 + 1 # the ten years to 2023
@@ -1469,11 +1469,11 @@ if (nrow(NEED) > 0) {
 }
 ```
 
-## Pooling and provider payment
+## Financing pools and provider payment arrangements
 
-We split current health spending by financing scheme in the latest year with country compulsory and out-of-pocket shares and publishable medians for both. Government schemes are compulsory schemes less compulsory insurance; voluntary schemes exclude out-of-pocket payments. For these differences, we take the median of members' differences under the same reporting rule. We read a small negative value from rounding (above -0.05) as zero.
+Current health expenditure is classified by financing scheme in the most recent year with sufficient information on compulsory financing and out-of-pocket payments. Government schemes are estimated as compulsory financing less compulsory insurance; voluntary financing excludes out-of-pocket payments. Peer estimates for these derived components are based on the median of country-level differences, subject to the same disclosure thresholds. Small negative residuals attributable to rounding (greater than -0.05) are treated as zero.
 
-We use the country's payment record to show how providers are paid. Where the record names neither a purchaser nor a payment arrangement, we take both from a compilation of public sources. We omit state-to-insurer payments, which are pooling flows, and methods no longer in use. The slide reports only the care level and main payment method.
+Provider payment arrangements are identified from country payment records, supplemented by compiled public sources when purchaser or payment details are not specified. Transfers from government to insurers are excluded because they concern pooling rather than payments to providers. Discontinued methods are also excluded. Results identify the principal payment mechanism for primary care, outpatient care, and hospital services.
 
 ```{r pooling-payment}
 # The financing schemes, every country and year, as % of current health spending: compulsory
@@ -1638,11 +1638,11 @@ if (PAY$present) {
 }
 ```
 
-## Fiscal space and funding
+## Fiscal space scenarios and potential benefits
 
-We start the projection from the base-year spending identity. We use the IMF World Economic Outlook of October 2026 for real GDP per person and general government spending (% of GDP), as ratios to base-year values. Without an IMF path, we use the country's past growth; without past growth, we hold the economy constant. The passive scenario holds health's share of government spending; the illustrative scenario raises the share one point a year from 2027, the year after the IMF vintage, up to the share exceeded by a quarter of all countries (the world's upper quartile, base year). We use horizons of 1, 3 and 5 years after 2026. We split the change from the base year exactly in a fixed order: growth, then the budget, then the health share.
+Fiscal projections begin with the expenditure identity in the latest base year. Country trajectories for real GDP per person and government expenditure as a share of GDP follow the October 2026 IMF World Economic Outlook. Where IMF projections are unavailable, historical growth is extrapolated; absent historical evidence, economic values are held constant. Under the passive scenario, health retains its base-year share of government expenditure. Under the illustrative prioritisation scenario, that share increases by one percentage point annually beginning in 2027, subject to a ceiling at the baseline upper quartile across countries. Results are reported for one-, three-, and five-year horizons after 2026. Changes are attributed sequentially to economic growth, aggregate government spending, and health prioritisation.
 
-On the funding slide, we value each scenario at the last horizon. Extra spending is the change in government health spending per person times population, carried forward with UN projections. We estimate deaths averted by applying a spending elasticity of mortality of -0.13, from a meta-regression of 65 studies (Gallet and Doucouliagos 2017), to projected deaths, holding other sources of health spending at their latest level. We value those lives using full income: a statistical life at 160 times income per person before age 75, less at older ages (Lancet Commission on Investing in Health, 2024). Both are illustrative cross-country associations, not forecasts.
+At the final projection horizon, additional annual health expenditure is calculated as the change in per capita government health spending multiplied by the projected population. Potential mortality benefits are illustrated using an expenditure-mortality elasticity of -0.13, reported in a meta-regression of 65 studies (Gallet and Doucouliagos, 2017), while other sources of health spending remain at their latest observed level. The economic valuation applies a full-income approach, using a statistical-life value of 160 times income per person before age 75 and a lower value at older ages (Lancet Commission on Investing in Health, 2024). These estimates illustrate possible magnitudes under simplified assumptions; they are not country-specific impact forecasts.
 
 ```{r projection-funding}
 VINTAGE <- 2026 # the IMF World Economic Outlook of October 2026
@@ -1819,9 +1819,9 @@ if (FUND$ready) {
 }
 ```
 
-## The four direction panels
+## Comparing expenditure and outcome trajectories
 
-We draw spending as an index, window start = 100, and calculate its median from the members' own indices, so the median line ends where the median growth rate does; a median of levels could fall while the typical country's spending rose. We show the outcomes as levels.
+Government health expenditure is indexed to 100 at the beginning of the analysis period. The peer comparison is based on the median of country-specific expenditure indices, reflecting the typical growth trajectory rather than the median expenditure level. Health outcomes and service coverage remain in their original units to facilitate interpretation.
 
 ```{r direction-panels}
 # Spending as an index (window start = 100, each country on its own start), and three outcome
@@ -1858,13 +1858,13 @@ spend_levels <- c(
 )
 ```
 
-# The slides
+# Country health financing assessment
 
-For each slide, we keep the deck's title and question, add a short note on what it shows and how to read it, then use one chunk to compute every printed number as a table in the deck's format and draw the main figure.
+The following sections bring together the fiscal context, changes in public spending, associated health and financial protection outcomes, service delivery inputs, and prospective fiscal space. Comparisons are intended to identify policy-relevant gaps and priorities, while recognising that cross-country associations do not establish causal effects.
 
-## Slide 1. Cover
+## 1. Country profile
 
-The cover names `r NAME`, the country's income group and region, and a reference year: the latest year at or before 2023 when all four financing shares (government, out of pocket, other domestic private, external) are published, none is negative or above 100, and the shares total 100 within 3 points. We count a private residual between -0.5 and 0 as zero. We use the deck's photograph credit.
+The profile covers `r NAME`, with its World Bank income group, region, and the latest reference year up to 2023 for which the four major health financing shares are sufficiently complete. These comprise government, out-of-pocket, other domestic private, and external financing. Shares must fall between zero and 100% and sum to approximately 100% (within three percentage points); small negative private residuals between -0.5 and zero are treated as zero.
 
 ```{r slide-01-cover}
 # The reference year: the latest year with all four shares of current health spending
@@ -1914,9 +1914,9 @@ slide_values[[1]] <- out
 knitr::kable(tibble::enframe(slide_values[[1]], name = "What the slide prints", value = "Value"))
 ```
 
-## Slide 2. Contents
+## 2. Key policy questions
 
-The contents list the slides in four groups (fiscal size and trend, health spending efficiency, health budget execution, fiscal space projection) and the annex, each numbered by its position. A country without local-currency data keeps US$ on its money slides and loses the six annex copies, so its deck has 16 slides instead of 22.
+The assessment is organised around four areas: fiscal capacity and historical spending trends; health outcomes and financial protection relative to expenditure; the distribution of resources across essential services and inputs; and prospective fiscal space. The annex provides supplementary performance diagnostics and monetary results in US dollars. Where national-currency conversions are unavailable, results are already presented in US dollars and the six currency-conversion annexes are omitted.
 
 ```{r slide-02-contents}
 # the positions of the fourteen main slides; the annex copies follow when there is local
@@ -1954,11 +1954,11 @@ slide_values[[2]] <- out
 knitr::kable(tibble::enframe(slide_values[[2]], name = "What the slide prints", value = "Value"))
 ```
 
-## Slide 3. The decomposition of government health spending
+## 3. What constrains government health spending?
 
-*What are the binding constraints to increasing government health spending?*
+*Which fiscal factors most constrain the expansion of public health expenditure?*
 
-We express government health spending per person in `r if (Q09$ready) Q09$year else "its latest complete year"` as the product of four steps, each compared with the `r ADJ` median for the same year: GDP per person, revenue as a share of GDP, spending per unit of revenue, and health's share of government spending. We print GDP per person and the result in `r CUR_NAME` at 2023 prices and compare them with the median in PPP, since national-currency levels cannot be compared across countries; the three budget steps are ratios and need no conversion. We print steps at two decimals, or the fiscal stance at three when two decimals would not multiply back to the printed result. The box names the primary fiscal constraint and what moving it to the median would be worth, all else held. To read it, a fiscal stance above 1 means part of spending is financed by borrowing; a step at the median is a distance from peers, not a target.
+In `r if (Q09$ready) Q09$year else "its latest complete year"`, government health spending per person is decomposed into GDP per person, government revenue as a share of GDP, expenditure relative to revenue, and health’s share of total government expenditure. Each component is benchmarked against the contemporaneous `r ADJ` group median. Country expenditure levels are expressed in `r CUR_NAME` at 2023 prices, while cross-country monetary comparisons use PPP international dollars. The fiscal ratios are comparable without currency conversion. Numerical precision is adjusted, where necessary, to ensure that the displayed components reproduce the overall spending identity. A fiscal stance greater than one indicates that government spending exceeds revenue, with the difference financed through net borrowing. The largest below-peer fiscal component indicates the most substantial accounting gap, not a recommended target or predicted policy outcome.
 
 ```{r slide-03-decomposition}
 # We build slide 3 in local currency at 2023 prices, and the same slide in US$ for annex A2
@@ -2240,9 +2240,9 @@ knitr::kable(tibble::enframe(slide_values[[3]], name = "What the slide prints", 
 if (!is.null(SLIDE3$main$plot)) print(SLIDE3$main$plot)
 ```
 
-## Slide 4. What drove the change in government health spending?
+## 4. What has driven changes in public health expenditure?
 
-Over `r TR$window$y0` to `r TR$window$y1`, we split the change in `r poss(SHORT)` real government health spending per person into the part that came from economic growth, the part that came from the size of the government budget relative to GDP, and the part that came from health's share of that budget. In log points, the three add up exactly to the total, so we can read the chart as a sum: each bar shows how much of the yearly change that part accounted for. The grey bars are the `r ADJ` medians of each part, taken separately, so they need not add up. The small chart compares the two halves of the window; a change of at least 1.5 points a year between them reads as faster or slower growth. We show economic growth for context only: it is not a lever a health ministry holds.
+Between `r TR$window$y0` and `r TR$window$y1`, changes in `r poss(SHORT)` real government health expenditure per person are decomposed into economic growth, changes in government expenditure relative to GDP, and changes in health’s share of the government budget. Their annual contributions, expressed in log points, sum to the total change. The `r ADJ` group medians provide context for each component but do not necessarily sum to the median total. Comparing the two halves of the period identifies accelerations or slowdowns of at least 1.5 log points per year. Economic growth provides important fiscal context but is not directly controlled by the health ministry.
 
 ```{r slide-04-drivers}
 country_change <- TR$dec
@@ -2374,9 +2374,9 @@ if (!is.null(country_change)) {
 }
 ```
 
-## Slide 5. Does the country achieve better health for its spending?
+## 5. Are health outcomes commensurate with health spending?
 
-We plot every country's premature NCD mortality against its health spending per person in PPP international dollars in `r if (isTRUE(HEALTH_PPP$ready)) HEALTH_PPP$cyear else "the fit year"`; the dashed curve shows what countries typically show at each spending level. We mark `r SHORT` with its gap to that curve and name the four countries in its region that are closest in spending. The figure beside the chart combines premature NCD, child and maternal deaths into one health score. To read it, a dot below the curve has lower mortality than typical for its spending. We show an association across countries, not the effect of spending, and premature NCD mortality is a WHO estimate, modelled where deaths are not fully registered.
+Premature mortality from noncommunicable diseases is compared with health expenditure per person, measured in PPP international dollars, across countries in `r if (isTRUE(HEALTH_PPP$ready)) HEALTH_PPP$cyear else "the benchmark year"`. The fitted relationship represents the mortality level typically observed at a given expenditure level. `r SHORT` is positioned relative to this benchmark and compared with four geographically relevant countries with similar spending. The accompanying composite score incorporates premature NCD, under-five, and maternal mortality. Countries below the mortality curve perform better than the cross-country benchmark at their expenditure level. These patterns are associations, not estimates of the causal effect of spending; NCD mortality estimates may also rely on statistical modelling where vital registration is incomplete.
 
 ```{r slide-05-health-for-spending}
 # How each measure is printed: decimals, a % sign, its name in the sentence, its unit and its
@@ -2595,9 +2595,9 @@ knitr::kable(tibble::enframe(slide_values[[5]], name = "What the slide prints", 
 if (!is.null(SLIDE5$main$plot)) print(SLIDE5$main$plot)
 ```
 
-## Slide 6. Does the country achieve stronger financial protection for its spending?
+## 6. How does financial protection compare with public spending?
 
-Each dot shows a country's latest survey of financial hardship (SDG 3.8.2, 2025 definition) against its government health spending per person in the survey year, in constant 2023 PPP dollars. The dashed line shows the level typical at each spending level. `r if (is.finite(PROT_PPP$country$year)) paste0("For ", SHORT, " the latest survey is from ", PROT_PPP$country$year, ".") else paste0(SHORT, " has no survey of financial hardship in global data.")` To read it, a dot below the line has less hardship than countries spending the same, and the group median beside the chart pools each member's latest survey, so survey years differ. Low hardship can also mean people go without care, which global data do not measure, and an old survey may no longer describe the country.
+Financial hardship from healthcare payments is compared with government health expenditure per person at the time of each country’s most recent survey, using constant 2023 PPP international dollars and the revised 2025 SDG 3.8.2 definition where available. The fitted relationship indicates the hardship typically observed at comparable spending levels. `r if (is.finite(PROT_PPP$country$year)) paste0("For ", SHORT, " the latest survey is from ", PROT_PPP$country$year, ".") else paste0(SHORT, " has no survey of financial hardship in global data.")` Lower hardship relative to the benchmark is favourable, but may also reflect unmet healthcare needs rather than effective financial protection. Income-group medians combine the latest available surveys of member countries and therefore do not necessarily represent the same year.
 
 ```{r slide-06-financial-protection}
 # A country with a survey paired at market exchange rates but no 2023 PPP conversion keeps
@@ -2791,9 +2791,9 @@ knitr::kable(tibble::enframe(slide_values[[6]], name = "What the slide prints", 
 if (!is.null(SLIDE6$main$plot)) print(SLIDE6$main$plot)
 ```
 
-## Slide 7. Are financing and performance moving in the right direction?
+## 7. Are financing and health performance improving together?
 
-We follow `r SHORT` and the `r ADJ` median year by year over the same window as slide 4 in four panels: government health spending as an index, premature NCD mortality, under-five mortality and the UHC service coverage index. The sentences beside them count measures where the country is better than the median in the latest year, describe whether each gap narrowed or widened, and compare the first and latest financial-hardship survey in the window. Outcomes respond to spending with a lag, so a decade of change does not show the reason for the change, and the premature NCD series ends in 2021.
+Trends for `r SHORT` are assessed against the `r ADJ` group median over the period used for the public spending decomposition. Four indicators are considered: indexed government health expenditure, premature NCD mortality, under-five mortality, and the UHC service coverage index. The comparison identifies current performance relative to peers and whether the respective gaps have narrowed or widened; financial hardship is examined using the first and last available surveys within the period. Health outcomes may respond to financing changes only after a delay, and premature NCD mortality data end in 2021. These descriptive trends cannot establish whether spending changes caused observed health outcomes.
 
 ```{r slide-07-direction}
 out <- c()
@@ -2939,9 +2939,9 @@ ggplot(panel_lines, aes(year, v, colour = who, linetype = who)) +
   theme_deck()
 ```
 
-## Slide 8. Do health budgets translate into services?
+## 8. Does public financing translate into service coverage?
 
-We compare government health spending per person and five service coverage measures, each as a percentage of the `r ADJ` median. Spending is the latest year with a publishable median, in PPP international dollars; services use each country's latest value in 2014 to 2023 against the median of members' latest values. A row more than 10% below the median is a shortfall. Coverage is capped at 100%, so its ratios move less than spending; the slide does not show that spending produces coverage. Global data do not show whether the budget is released and spent as planned.
+Government health expenditure per person and five service coverage indicators are expressed relative to the `r ADJ` group median. Expenditure is compared in PPP international dollars for the most recent year with a reportable median; service indicators use the latest available country observations from 2014 to 2023. Values more than 10% below the corresponding peer median are identified as shortfalls. Because coverage indicators are bounded at 100%, their ratios are not directly comparable with unbounded expenditure ratios. Moreover, financing levels alone do not reveal whether funds were released, spent as planned, or translated into service delivery.
 
 ```{r slide-08-budgets-to-services}
 SVC_LABEL <- c(
@@ -3087,9 +3087,9 @@ knitr::kable(tibble::enframe(slide_values[[8]], name = "What the slide prints", 
 if (!is.null(SLIDE8$main$plot)) print(SLIDE8$main$plot)
 ```
 
-## Slide 9. Does the country have the health workforce it needs?
+## 9. Is the health workforce sufficient to support service delivery?
 
-We compare doctors plus nurses and midwives per 1,000 people, in years when both are reported, with the `r ADJ` median (each member's latest value in the five years to the year shown) and the WHO threshold of 4.45 per 1,000, the density associated with reaching the median of twelve SDG tracer indicators. The threshold is a planning benchmark, not a staffing norm. A jump between years often reflects what was counted (the private sector, or licensed rather than active workers), not a workforce change.
+Health workforce availability is assessed as the combined density of doctors, nurses, and midwives per 1,000 population, using years in which the relevant professional groups are reported together. Country estimates are compared with the `r ADJ` peer median and the WHO reference level of 4.45 health workers per 1,000 population, which is associated with achieving the median of twelve SDG tracer indicators. This threshold is a broad planning reference rather than a staffing requirement for individual facilities. Apparent changes over time may also reflect differences in reporting coverage, including the private sector or whether licensed rather than actively practising professionals are counted.
 
 ```{r slide-09-workforce}
 out <- c()
@@ -3219,9 +3219,9 @@ if (WF$ready) {
 }
 ```
 
-## Slide 10. Are essential medicines available, and who pays for them?
+## 10. How accessible are essential medicines, and who finances them?
 
-We show medicines and other medical goods bought outside a visit or a stay (WHO health accounts line HC.5.1) as a share of `r poss(SHORT)` current health spending, by year, and who paid where the accounts report it. Medicines given during a visit or a hospital stay are counted with that care, so a country whose facilities dispense most medicines shows a small share; this is not all spending on medicines. Private sources are households, insurers, non-profits and firms together, because global data do not separate out-of-pocket payments for medicines. Availability in facilities (SDG 3.b.3) is published for few countries.
+Spending on medicines and other medical goods purchased outside consultations or inpatient stays (WHO health accounts category HC.5.1) is assessed as a share of `r poss(SHORT)` current health expenditure. Financing sources are distinguished where reported. Medicines supplied during outpatient or inpatient care are included under the corresponding service category, so the measure does not capture total pharmaceutical expenditure. Private financing combines households, insurers, non-profit organisations, and businesses; available global data do not consistently isolate household out-of-pocket spending on medicines. Facility-level medicine availability data (SDG 3.b.3) remain limited.
 
 ```{r slide-10-medicines}
 PAYER <- c(pvt = "private sources", gov = "the government", ext = "external sources")
@@ -3338,9 +3338,9 @@ if (MED$ready) {
 }
 ```
 
-## Slide 11. Does funding reach the services and populations with the greatest need?
+## 11. Are resources aligned with population health needs?
 
-`r if (isTRUE(PREV$ready)) paste0("The lines show the share of ", if (PREV$tier == "all") "current health spending from all sources" else "government health spending", " that went to preventive and to curative care each year, from ", c(gov = "WHO health accounts, financed by government", cofog = "IMF government spending by function", all = "WHO health accounts, all sources")[[PREV$tier]], ".") else "WHO health accounts and IMF statistics publish no split of government health spending by function for this country, so the slide shows need against the income-group median instead."` The concern behind the slide is that public health spending tends to stay flat or fall while curative care takes a growing share. The sentence beside the chart names the measure of need furthest above the `r ADJ` median among eleven burden and coverage measures. The years 2020 to 2022 include COVID-19 testing and vaccination, counted as preventive care; identical consecutive-year shares usually mean one year's split was applied to others. Global data do not show how spending is shared across regions and population groups.
+`r if (isTRUE(PREV$ready)) paste0("The lines show the share of ", if (PREV$tier == "all") "current health spending from all sources" else "government health spending", " that went to preventive and to curative care each year, from ", c(gov = "WHO health accounts, financed by government", cofog = "IMF government spending by function", all = "WHO health accounts, all sources")[[PREV$tier]], ".") else "WHO health accounts and IMF statistics publish no split of government health spending by function for this country, so the slide shows need against the income-group median instead."` The allocation between preventive and curative services provides an indication of spending priorities, while comparison with eleven burden and coverage indicators highlights areas of elevated need relative to the `r ADJ` group median. Preventive expenditure in 2020-2022 may include COVID-19 testing and vaccination, affecting trend interpretation. Identical expenditure shares across consecutive years may reflect the application of a common distribution to multiple reporting periods. The available global data do not establish how spending is distributed across subnational areas or socioeconomic groups.
 
 ```{r slide-11-funding-and-need}
 NEED_LABEL <- c(
@@ -3513,9 +3513,9 @@ if (PREV$ready) {
 }
 ```
 
-## Slide 12. Do pooling and purchasing arrangements support the right care?
+## 12. Do pooling and purchasing arrangements support effective care?
 
-We split `r poss(SHORT)` current health spending by financing scheme in `r if (isTRUE(POOL$ready)) POOL$year else "the latest year"`: compulsory schemes (of which government schemes and compulsory insurance), voluntary schemes and out-of-pocket payments, compared with the `r ADJ` median and the group's middle half. The sentence beside the chart reads the country's provider payment record for the main way primary, outpatient and hospital care are paid. A large compulsory share means money is pooled before people fall ill; external money is a source spent through these schemes, so it is not a row of its own. What a payment method can encourage is an expected signal from WHO's guide on mixed provider payment, not observed behaviour.
+The composition of `r poss(SHORT)` current health expenditure in `r if (isTRUE(POOL$ready)) POOL$year else "the latest year"` is presented by financing arrangement: compulsory government and insurance schemes, voluntary schemes, and household out-of-pocket payments. Comparisons use the `r ADJ` group median and interquartile range. A higher compulsory financing share generally indicates greater prepayment and risk pooling. External resources are classified by the financing schemes through which they are spent rather than shown as a separate scheme. Provider payment information identifies the principal arrangements for primary, outpatient, and hospital services; associated behavioural incentives are theoretical expectations informed by WHO guidance, not directly observed provider responses.
 
 ```{r slide-12-pooling-purchasing}
 # The provider payment sentence: the main methods by level of care, as recorded
@@ -3682,9 +3682,9 @@ if (POOL$ready) {
 }
 ```
 
-## Slide 13. What is health budget space?
+## 13. Understanding health budget space
 
-The slide defines health budget space as the additional government health expenditure that can plausibly be accommodated over the next one or two budget cycles, given the expected macro-fiscal envelope and a feasible change in health's share of government spending; it is not a target. The slide also defines the two horizons and the two scenarios used on slides 14 and 15. We take the only numbers on this slide, the horizon years, from the projection so the definition and projection cannot disagree: the first two years after the IMF vintage of 2026, and the projection's last year.
+Health budget space refers to additional government resources for health that may be accommodated within the expected macro-fiscal envelope and a feasible degree of health prioritisation over the next one or two budget cycles. It is a framework for assessing feasible expenditure rather than a spending target. The short-term horizon covers the first two years after the October 2026 IMF forecast vintage, while the medium-term analysis extends to the final projection year. The following scenarios distinguish the resources associated with the projected fiscal envelope from those associated with a stronger health budget share.
 
 ```{r slide-13-budget-space}
 # The horizons come from the projection, so that the definition and the projection cannot
@@ -3700,9 +3700,9 @@ slide_values[[13]] <- c(
 knitr::kable(tibble::enframe(slide_values[[13]], name = "What the slide prints", value = "Value"))
 ```
 
-## Slide 14. What fiscal space can growth and health prioritisation create?
+## 14. How much additional fiscal space could be mobilised?
 
-We show how much government health spending per person would change from `r if (PROJ$ready) PROJ$base$year else "the base year"` in each projection year, in `r CUR_NAME` at 2023 prices, and where the change came from: economic growth, the size of the government budget, and, in the illustrative scenario, a health share rising one point a year from 2027. The number after each bar is the level reached. To read it, the passive scenario shows what the IMF's paths give with health's share held; the rise of one point a year is a default for discussion, not a finding about what is feasible. The base-year comparators understate the distance in later years because peers grow too. We print a label inside a bar only where the deck's bar is wide enough to hold it, as calculated in the chunk from the deck's chart geometry.
+Projected changes in government health expenditure per person from `r if (PROJ$ready) PROJ$base$year else "the base year"` are expressed in `r CUR_NAME` at constant 2023 prices. Contributions are attributed to economic growth, the overall size of government expenditure, and changes in the health budget share. The passive scenario holds health prioritisation constant while incorporating projected macro-fiscal trends. The illustrative scenario increases the health budget share by one percentage point annually beginning in 2027, subject to the specified ceiling. This increment is a scenario assumption, not an assessment of political or fiscal feasibility. Peer benchmarks are fixed at the base year; actual peer spending may also grow over the projection period.
 
 ```{r slide-14-fiscal-space}
 # We build slide 14 in local currency at 2023 prices, and the same slide in US$ for annex A6
@@ -4059,9 +4059,9 @@ knitr::kable(tibble::enframe(slide_values[[14]], name = "What the slide prints",
 if (!is.null(SLIDE14$main$plot)) print(SLIDE14$main$plot)
 ```
 
-## Slide 15. How much more funding is needed, and what would it buy?
+## 15. What could additional health expenditure achieve?
 
-We take both scenarios from slide 14 and value them at the last horizon. The first panel shows extra government health spending a year against 2023 spending per person held constant; the second shows deaths a cross-country spending elasticity of mortality (-0.13) would associate with higher spending; the third values those lives at full income. Each figure is illustrative: we apply a cross-country association to `r poss(SHORT)` projected deaths, with the same proportional fall at every age and no lag. The panels are not a forecast, and a costed national package would replace them.
+The two fiscal scenarios are evaluated at the final projection horizon. Additional annual government health expenditure is measured relative to a baseline in which 2023 per capita spending remains unchanged. Potentially averted deaths are illustrated using an expenditure-mortality elasticity of -0.13, and the associated economic value is estimated through a full-income framework. Applying this cross-country association to projected deaths in `r poss(SHORT)` assumes an immediate, proportionate mortality reduction across age groups, without allowing for implementation delays or differences in intervention effectiveness. These values are illustrative rather than forecasts; programme-specific costing and impact modelling would be needed to estimate the returns to a concrete national investment package.
 
 ```{r slide-15-funding-needed}
 # neither scenario changes spending (within half a percent of the base level)
@@ -4385,9 +4385,9 @@ knitr::kable(tibble::enframe(slide_values[[15]], name = "What the slide prints",
 if (!is.null(SLIDE15$main$plot)) print(SLIDE15$main$plot)
 ```
 
-## Slide 16. Annex A1. What is the main performance gap: health, financial protection, or both?
+## Annex A1. Relative gaps in health outcomes and financial protection
 
-We plot each country's health score (slide 5) against its protection score (slide 6), both in standard deviations from the level typical at the country's spending, with right and up better. A score at or below -0.5 is a gap, dividing the chart into no gap, health gap only, protection gap only, or both. On the main slide, both scores come from the PPP fits. The scores use different fits and often different years, so the chart shows where gaps are, not which is larger.
+Health outcome performance and financial protection are jointly assessed using standardised deviations from cross-country expenditure benchmarks (Sections 5 and 6). Higher values indicate more favourable performance on both axes. A score of -0.5 or lower identifies a deficit in the relevant dimension, separating countries into four groups: no deficit, health outcomes deficit only, financial protection deficit only, and deficits in both. Scores are based on PPP expenditure comparisons, but the underlying models and reference years may differ; consequently, the figure indicates the presence of relative deficits rather than providing a directly comparable measure of their magnitude.
 
 ```{r slide-16-annex-a1-performance-gap}
 # The main slide uses the PPP scores, unless the country has a protection score only at
@@ -4571,9 +4571,9 @@ if (nrow(gap_fit$points) > 0) {
 }
 ```
 
-## Slide 17. Annex A2. The decomposition of government health spending, in US$
+## Annex A2. Decomposition of government health expenditure in US dollars
 
-We show slide 3's decomposition at market exchange rates in current US$: GDP per person and the result are printed in US$ and compared with US$ medians, so the economic base and result can read differently from the PPP comparison on slide 3. The budget steps, binding constraint and test stay the same. A country without local-currency data has no annex copies; its main slides are already in US$.
+The accounting decomposition in Section 3 is expressed here in current US dollars at market exchange rates. GDP per person and government health expenditure are compared with corresponding US-dollar income-group medians; these monetary comparisons may differ from results presented in PPP terms. Fiscal ratios and the procedure for identifying the principal constraint remain unchanged. Countries without national-currency conversion data already use US dollars in the main assessment and therefore do not require this supplementary presentation.
 
 ```{r slide-17-annex-a2-decomposition-usd}
 # We built this copy with slide 3, in US$; a country without local currency has no annex
@@ -4588,9 +4588,9 @@ if (LCU_MAIN) {
 if (LCU_MAIN && !is.null(SLIDE3$annex$plot)) print(SLIDE3$annex$plot)
 ```
 
-## Slide 18. Annex A3. Does the country achieve better health for its spending? (US$)
+## Annex A3. Health outcomes relative to spending in US dollars
 
-We repeat slide 5 at market exchange rates in current US$. The fit year and method stay the same. The fitted line, country gap and four comparators can differ because exchange rates and price levels move countries along the spending axis.
+The health outcomes benchmark from Section 5 is re-estimated using expenditure in current US dollars at market exchange rates. The reference period and statistical specification remain unchanged. Differences in international price levels and exchange rates may alter country positions, the fitted relationship, the relative performance gap, and the set of closest comparators.
 
 ```{r slide-18-annex-a3-health-usd}
 # We built this copy with slide 5, in US$; a country without local currency has no annex
@@ -4605,9 +4605,9 @@ if (LCU_MAIN) {
 if (LCU_MAIN && !is.null(SLIDE5$annex$plot)) print(SLIDE5$annex$plot)
 ```
 
-## Slide 19. Annex A4. Does the country achieve stronger financial protection for its spending? (US$)
+## Annex A4. Financial protection relative to spending in US dollars
 
-We repeat slide 6 with government health spending in constant 2023 US$. The surveys and measure stay the same; the typical level and comparators come from the US$ fit.
+Financial hardship is compared with government health expenditure in constant 2023 US dollars, using the same surveys and outcome definitions as Section 6. Expected hardship levels and the relevant comparison countries are determined from the US-dollar expenditure benchmark.
 
 ```{r slide-19-annex-a4-protection-usd}
 # We built this copy with slide 6, in US$; a country without local currency has no annex
@@ -4622,9 +4622,9 @@ if (LCU_MAIN) {
 if (LCU_MAIN && !is.null(SLIDE6$annex$plot)) print(SLIDE6$annex$plot)
 ```
 
-## Slide 20. Annex A5. Do health budgets translate into services? (US$)
+## Annex A5. Public financing and service coverage in US dollars
 
-We repeat slide 8 with government health spending per person in current US$ against the US$ median. Services stay the same.
+Government health expenditure per person is expressed in current US dollars and compared with the corresponding income-group median. Service coverage indicators and their underlying reference periods are unchanged from Section 8.
 
 ```{r slide-20-annex-a5-services-usd}
 # We built this copy with slide 8, in US$; a country without local currency has no annex
@@ -4639,9 +4639,9 @@ if (LCU_MAIN) {
 if (LCU_MAIN && !is.null(SLIDE8$annex$plot)) print(SLIDE8$annex$plot)
 ```
 
-## Slide 21. Annex A6. What fiscal space can growth and health prioritisation create? (US$)
+## Annex A6. Fiscal space projections in US dollars
 
-We repeat slide 14 in US$ at 2023 prices and exchange rates. The paths, shares and split stay the same; we divide every amount in local currency by GHED's 2023 rate.
+Projected health expenditure paths are expressed in constant 2023 US dollars. Economic assumptions, expenditure shares, and the decomposition of changes are identical to those in Section 14; national-currency amounts are converted using GHED’s 2023 exchange rate.
 
 ```{r slide-21-annex-a6-fiscal-space-usd}
 # We built this copy with slide 14, in US$; a country without local currency has no annex
@@ -4656,9 +4656,9 @@ if (LCU_MAIN) {
 if (LCU_MAIN && !is.null(SLIDE14$annex$plot)) print(SLIDE14$annex$plot)
 ```
 
-## Slide 22. Annex A7. How much more funding is needed, and what would it buy? (US$)
+## Annex A7. Potential benefits of additional health expenditure in US dollars
 
-We repeat slide 15 in US$ of 2023. Deaths averted do not depend on currency; we divide the extra spending and value of lives in local currency by GHED's 2023 rate.
+The final-horizon analysis from Section 15 is expressed in constant 2023 US dollars. Currency conversion affects estimates of additional expenditure and the economic value of benefits but does not change the modelled number of deaths averted.
 
 ```{r slide-22-annex-a7-funding-usd}
 # We built this copy with slide 15, in US$; a country without local currency has no annex
@@ -4673,9 +4673,9 @@ if (LCU_MAIN) {
 if (LCU_MAIN && !is.null(SLIDE15$annex$plot)) print(SLIDE15$annex$plot)
 ```
 
-# Check against the deck
+# Validation and consistency checks
 
-For the fifteen reference countries, we use `data/reference_slides.rds`, which holds the visible text of every slide as printed in the deck's own HTML export. We check both ways. First, every value in the tables above must appear in its slide's text as a whole number: "23" does not count as found inside "2023". Second, after removing those values, no number may remain in the slide text except in the deck's fixed wording (source lines, definitions and stated rules, such as "ages 30 to 70" or "more than 5% below"); this catches any number the file does not compute. We set aside axis tick labels when building the reference because the plotting library draws them as scale marks, not computed numbers. The chunk stops with an error on any mismatch.
+For fifteen reference countries, calculated values are compared with the text contained in `data/reference_slides.rds`, derived from the corresponding published HTML presentations. Validation checks both whether each calculated value appears as a complete numerical token and whether unexplained numerical values remain after the calculated outputs are accounted for. Fixed source annotations, definitions, and methodological thresholds are excluded from the latter check, as are graphical axis ticks. Any discrepancy is flagged as an error to maintain numerical consistency between the analytical outputs and reference material.
 
 ```{r reference-check}
 REF <- readRDS(file.path("data", "reference_slides.rds"))

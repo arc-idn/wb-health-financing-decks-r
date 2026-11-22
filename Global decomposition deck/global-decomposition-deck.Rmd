@@ -1,6 +1,6 @@
 ---
-title: "What accounted for the change in government health spending, 2000-2023: a global decomposition"
-subtitle: "Every slide of the deck rebuilt in R from the input data"
+title: "Drivers of Government Health Spending, 2000-2023: A Global Decomposition"
+subtitle: "The contributions of economic growth, government expenditure, and budget priority for health"
 author: "Farizal R. Muharram"
 date: "20 November 2026"
 output:
@@ -15,51 +15,41 @@ output:
     highlight: tango
 ---
 
-# About this file
+# Overview
 
-## What the deck answers
+## Scope and key questions
 
-We measure how much economic growth, the size of government and health's share of the government budget accounted for the change in real government health spending per person in every country with data from 2000 to 2023. In Section 1 (slides 1 to 12), we report results for the world, income groups, World Bank regions and individual countries, then identify records to examine in detail. In Section 2 (slides 13 to 21), we consider budget years 2027 to 2029 and set out three amounts for every country: the minimum ask that holds health's share steady, an upper ask and the ceiling set by growth in the whole government budget. We list every country in two annexes (slides 22 to 35).
+Government health expenditure depends on the resources available in the economy, the proportion of those resources spent by government, and the share of public expenditure allocated to health. This analysis quantifies the contribution of each factor to changes in real government health spending per capita between 2000 and 2023.
 
-We rebuild every slide from the input data. Each slide has a heading, an explanation and a code chunk that computes its numbers, prints them in a table and draws its main figure. Our figures use the deck's numbers but not its layout. In the final chunk, we check every printed number against the output tables used to build the deck.
+The historical analysis examines global trends, differences across income groups and World Bank regions, and country-level trajectories. It also identifies cases of sustained growth in health spending and instances in which health lost ground within the government budget. A forward-looking analysis for 2027-2029 then illustrates the potential increase in health expenditure under alternative fiscal and budget-allocation assumptions. Country-level results are provided in the annexes.
 
-## The identity
+The decomposition is descriptive rather than causal. It establishes how the observed change in spending is distributed across three accounting components; it does not establish which policies or economic conditions caused those components to change.
 
-We write government health spending per person as the product of three parts:
+## Analytical framework
 
-<p style="text-align:center"><b>government health spending per person = GDP per person &times; (government spending
-&divide; GDP) &times; (government health spending &divide; government spending)</b></p>
+Government health spending per capita can be expressed as the product of three components:
 
-We read the first part as the economy, the second as the size of government (general government expenditure as a share of GDP) and the third as health priority (domestic general government health expenditure as a share of general government expenditure). Natural logarithms turn the product into a sum, so the change in the logarithm of spending per person between two years splits exactly into the changes in the logarithms of its three parts. We calculate every change in this file as an average annual change in log points, 100 &times; ln(end value / start value) / number of years, which is close to a percentage change a year when changes are small. The identity means the three parts add up to the total in every country, period and group taken as a whole. Our split shows where a change came from in arithmetic; the identity does not explain why any part moved.
+<p style="text-align:center"><b>Government health spending per capita = GDP per capita &times; (government expenditure &divide; GDP) &times; (government health expenditure &divide; total government expenditure)</b></p>
 
-## The data
+The components represent **economic capacity** (GDP per capita), **the size of government** (general government expenditure as a share of GDP), and **the budget priority assigned to health** (domestic general government health expenditure as a share of general government expenditure).
 
-We use R data files (RDS) in `data/`. For each file, `data/README.md` records the source, retrieval date, size and sha256 of the CSV used to create it.
+Expressing the identity in natural logarithms makes the change in spending equal to the sum of changes in the three components. Results are reported as average annual changes in log points, calculated as 100 &times; ln(end value / start value) divided by the number of years. For small changes, this is approximately equivalent to an annual percentage change. The components sum exactly to the total for an individual country or for an appropriately constructed aggregate. Medians calculated separately across countries do not necessarily sum to the median total.
 
-- We use `ghed_extract.rds`: World Health Organization Global Health Expenditure Database (GHED), 2025 update, retrieved
-  28 May 2026. Seven series for every country and year: GDP per person and current health expenditure per person in
-  current US\$, current health expenditure per person in constant 2023 US\$, general government expenditure as a share
-  of GDP, domestic general government health expenditure as a share of general government expenditure and per person,
-  and population.
-- We use `countries.rds` and `group_labels.rds`: the 195 countries with their World Bank income group and region (2023
-  classification, as published with the GHED 2025 update) and the group labels.
-- We use `weo_currency_extract.rds`: IMF World Economic Outlook, October 2026, retrieved 23 October 2026. GDP in national
-  currency at current and constant prices, general government expenditure as a share of GDP, GDP in US\$ and population,
-  2024 to 2029. Used only by Section 2.
-- We read `reference_outputs.rds` only in the final check; the file holds the report's own output tables.
+## Data sources
 
-## How to run it
+The analysis combines the following sources:
 
-1. Unzip the folder anywhere and open `global-decomposition-deck.Rmd` in RStudio. Knitting runs in the folder that
-   holds the file, so the relative paths to `data/` and `fonts/` work without any change.
-2. Install any missing package once: `install.packages(c("dplyr", "tidyr", "scales", "ggplot2", "knitr", "rmarkdown", "systemfonts", "ragg"))`.
-3. Open `global-decomposition-deck.Rmd` and press Knit, or run `rmarkdown::render("global-decomposition-deck.Rmd")`.
-   The whole file runs in about a minute and writes only the HTML file, next to the Rmd file.
+- **WHO Global Health Expenditure Database (GHED), 2025 update**, retrieved 28 May 2026. The extract contains GDP per capita, current and constant-price health expenditure, general government expenditure relative to GDP, domestic government health expenditure relative to total government expenditure and per capita, and population.
+- **World Bank income-group and regional classifications**, using the 2023 classification accompanying the GHED extract. The country reference file covers 195 countries.
+- **IMF World Economic Outlook, October 2026**, retrieved 23 October 2026. National-currency GDP in current and constant prices, general government expenditure relative to GDP, GDP in US dollars, and population projections for 2024-2029 are used for the forward-looking scenarios.
 
-Our figures use Open Sans. The six font files and their licence (SIL Open Font Licence 1.1) are in `fonts/` and are
-registered at the start of the setup chunk, so nothing has to be installed on the computer.
+Source extracts are stored as RDS files in `data/`. The accompanying `data/README.md` documents their provenance, retrieval dates, and file checksums. The reference output file is used solely for the reproducibility check.
 
-# Setup and data
+## Reproducing the analysis
+
+This R Markdown report can be rendered in RStudio using **Knit** or with `rmarkdown::render("global-decomposition-deck.Rmd")`. The input files should remain in their accompanying `data/` and `fonts/` directories. Required R packages are `dplyr`, `tidyr`, `scales`, `ggplot2`, `knitr`, `rmarkdown`, `systemfonts`, and `ragg`; missing packages may be installed using `install.packages()`. The bundled Open Sans fonts are registered automatically. Rendering generates a standalone HTML report, with the analytical code available in collapsible sections.
+
+# Analytical implementation
 
 ```{r setup, message = FALSE}
 ## Setup: packages, the Open Sans font shipped in fonts/, chunk options, colours, the
@@ -236,29 +226,15 @@ data.frame(
 )
 ```
 
-# Cleaning
+# Data preparation and quality criteria
 
-We start with the GHED extract, which is already tidy, so the cleaning is short. The next chunk records each decision that affects a number and the reason for that decision.
+The analytical dataset is constructed from country-year observations in GHED. The following decisions ensure consistent comparisons across countries and periods.
 
-- **Study period and windows.** We use 2000 to 2023 for the trend and fixed periods. Each country gets a
-  latest window: ten years ending at the latest year, up to 2024, in which all three parts are published, starting at
-  the earliest year from ten years back that also has all parts, and never shorter than five years. The rule is the
-  one the country profile slide uses, so the numbers agree with the country decks. Seven countries have 2024 data in
-  GHED, which is released in stages, so the windows of those seven countries run 2014-2024.
-- **Fixed periods.** We use 2000-2010, 2010-2019 and 2019-2023 to compare the same years in every country: the 2000s, the
-  decade up to the pandemic, and the pandemic years with their partial reversal. Exact end years are used, with no
-  substitution of a nearby year.
-- **Data flags.** We apply four rules inside each country's window to mark series that make a rate hard to read. A break
-  (B) is a budget share or health share that doubles or halves from one year to the next, which is where
-  reclassifications in the accounts usually sit. A shock (S) is real GDP per person rising by more than 25% or falling
-  by more than 20% in one year: war, conversion artefacts after high inflation, the 2020 collapse in tourism, oil booms.
-  An extreme end (E) is a share in the first or last year of the window more than twice or less than half its own
-  median over the window, which makes an endpoint rate unrepresentative. A level flag (L) is government spending above
-  100% of GDP or government health spending below US\$1 per person at either end. Flagged countries stay in every
-  median and aggregate but are left out of the instructive examples and listed apart among the warning cases.
-- **Real terms.** We use GHED's current health expenditure per person in current US\$ and constant 2023 US\$. We take the ratio of the two as GHED's own conversion factor for each country and year, then apply the factor to GDP per person. The two shares are ratios and need no conversion. One conversion for everything keeps the identity exact in constant prices, and we use the same conversion as the country profile slide. The factor mixes domestic prices and exchange rates, one of the limits we discuss on slide 12.
-- **Which country-years enter.** We keep a country-year only when the conversion factor, GDP per person and both shares
-  are published and above zero, since every part enters as a logarithm.
+- **Observation periods.** Historical comparisons use 2000-2010, 2010-2019, and 2019-2023. For country profiles, the most recent eligible window extends up to ten years and ends in the latest year with complete component data, including 2024 where available. Windows shorter than five years are excluded. Seven countries have complete data through 2024 and therefore use 2014-2024.
+- **Comparable endpoints.** Fixed-period analyses require observations for both specified endpoints; adjacent years are not substituted. This avoids interpreting changes in data availability as changes in spending.
+- **Quality flags.** Four non-exclusive criteria identify observations requiring caution: **B (break)** indicates a government-expenditure or health-expenditure share that at least doubles or halves between consecutive years; **S (shock)** indicates a one-year change in real GDP per capita above +25% or below −20%; **E (unusual endpoint)** indicates an initial or final share outside one-half to twice the window median; and **L (extreme level)** indicates government expenditure exceeding 100% of GDP or government health expenditure below US$1 per capita at an endpoint. Flagged observations remain in descriptive summaries but are separated from unflagged illustrative cases.
+- **Constant-price measures.** The ratio of GHED current-price to constant-2023-price health expenditure per capita provides a country-year conversion factor that is also applied to GDP per capita. Expenditure shares are dimensionless. Applying a consistent factor preserves the accounting identity, although exchange-rate and price movements still affect cross-country interpretation.
+- **Completeness and positivity.** A country-year is included only when GDP per capita, both expenditure shares, and the price-conversion factor are available and strictly positive, as required for logarithmic decomposition.
 
 ```{r clean}
 ## Cleaning: from the long GHED extract to one row per country and year with the
@@ -319,26 +295,17 @@ data.frame(
 )
 ```
 
-We use the last column above to compare the product of the three parts in current US\$ with GHED's own series for government
-health spending per person. The largest gap is a tiny fraction of one per cent, a rounding difference in the published
-values, so the identity holds in the data and not only on paper.
+The reconstructed expenditure identity is checked against GHED's published government health expenditure per capita in current US dollars. Differences are negligible and reflect rounding in the source series rather than a substantive inconsistency in the accounting relationship.
 
-# The decomposition engine
+# Decomposition methodology
 
-## Country windows, periods and flags
+## Country-level trends and classification
 
-In the next chunk, we do the country-level work. For each country the chunk picks the latest window, splits the change over the
-window into the three parts, splits the window into two halves at its middle year (used by the instructive examples),
-applies the four data flags and names the pattern of change. The pattern rule is plain arithmetic: a country is
-"declining" if spending per person fell over the window, and otherwise named after the largest of the three parts
-(economy-led, budget-led or priority-led). "Health lost priority" means the economy part was positive while the health
-priority part was negative. The same split is then made for each of the three fixed periods, for every country with all
-parts at both ends of the period.
+For each eligible country, the change in real government health expenditure per capita is decomposed into the contributions of economic capacity, government size, and health's share of the budget. The latest available window is also divided at its midpoint to examine whether spending increased during both halves. The same decomposition is calculated independently for the three fixed historical periods.
 
-We treat the instructive examples and warning cases as rules, not rankings. An instructive example grew in the top quarter
-of its income group, got at least half of the growth from the size of government and health priority together, grew in
-both halves of its window and carries no data flag. A warning case either spent less per person at the end of its
-window, or saw health priority take away at least half of what the economy added.
+Countries are classified as **declining** when real government health expenditure per capita fell. Otherwise, they are classified as **economy-led**, **government-size-led**, or **health-priority-led**, according to the largest contribution to the observed increase. A separate indicator identifies countries where economic capacity increased but the budget share allocated to health declined. These categories describe accounting patterns, not underlying causes.
+
+Two additional classifications support interpretation. **Sustained-growth examples** are countries in the top quartile of spending growth within their income group, with at least half of total growth attributable jointly to government size and health priority, positive growth in both halves of the observation window, and no quality flag. **Cases warranting closer examination** are countries where real government health spending per capita declined or where a reduction in health priority offset at least half of the positive contribution from economic growth. Neither classification should be interpreted as an assessment of policy performance.
 
 ```{r engine-countries}
 ## Country level: each country's latest window, its decomposition, halves, flags, pattern, example
@@ -511,11 +478,13 @@ data.frame(
 )
 ```
 
-## Groups: the median country and the group as a whole
+## Interpreting country medians and population-weighted aggregates
 
-We use two summaries for a group in the deck. The **median country** is the median of countries' rates, calculated separately for each part; the three part medians therefore need not add up to the median total. The **group as a whole** sums real GDP (GDP per person times population), government spending and government health spending, then divides each sum by the summed population. The identity also holds for these sums, so the parts add up exactly. Because an aggregate needs the same years for every member, the latest-window aggregate uses 2013 and 2023, the window used by most countries, while the latest-window median uses each country's own window. Groups with fewer than eight countries are described but not compared.
+Two complementary measures are reported for income groups and regions. The **median country** represents the central country-level experience, with the median calculated separately for each component. Consequently, the median component contributions may not sum to the median total. The **aggregate** combines GDP, government expenditure, and government health expenditure across countries before calculating per-capita values and expenditure shares. Its three contributions sum exactly, but the result is influenced by the largest economies and populations.
 
-For 2000 to 2023, we build trend series of medians and quartiles for all countries with data in each year and for the balanced panel with all parts throughout. We also track health's spending share around the pandemic (2019, 2021 and 2023 for the same countries), count patterns and calculate each low-income country's contribution to group spending.
+For the latest-window comparison, country medians use each country's eligible window, whereas aggregates use the common endpoints of 2013 and 2023. Results for groups with fewer than eight countries are presented descriptively and are not emphasised in comparisons.
+
+The historical series include annual country medians and interquartile ranges, a balanced panel of countries with complete observations throughout 2000-2023, and the trajectory of health's budget share before and after the COVID-19 pandemic. These complementary measures distinguish changes in a typical country from changes in total spending across countries.
 
 ```{r engine-groups}
 ## Group level: medians and aggregates by period and latest window, sensitivity without
@@ -816,21 +785,17 @@ data.frame(
 )
 ```
 
-## The prescription for 2027 to 2029
+## Fiscal space scenarios for 2027-2029
 
-In Section 2, we apply one method to every country with IMF projections. Health's share of government spending, *h*, is held at its value at the end of the country's window (2023 for most countries) through 2026. Government spending in national currency is built from IMF projections: GDP times either the IMF's projected expenditure share (the IMF path) or the 2026 share held flat (the flat path). For each year from 2027 to 2029:
+The forward-looking analysis translates IMF macro-fiscal projections into indicative ranges for additional government health expenditure. For each country, the share of total government expenditure allocated to health, denoted *h*, is held at its latest observed value through the 2026 baseline. Two government-expenditure paths are considered: the **IMF path**, which uses projected expenditure as a share of GDP, and a **constant-share path**, which holds the 2026 government-expenditure-to-GDP ratio unchanged.
 
-- We define the **ceiling** as all the growth in government spending since 2026, the most the health budget could gain;
-- We calculate the **protect amount** as *h* times the ceiling, the increase that keeps health's share where it is and so the least
-  to ask for;
-- We consider **candidates** that raise *h* by the country's own trend over its window (only if the trend is positive) or by fixed
-  steps of +0.25, +0.5 or +0.75 percentage points a year;
-- We call a candidate **admissible** if it lies between the protect amount and the ceiling, and set the **upper ask** at the
-  largest admissible candidate (the protect amount if none is admissible);
-- If government spending does not grow, the method **does not apply**: the question is then the fiscal envelope,
-  not health's priority.
+For each year from 2027 to 2029, three reference amounts are calculated:
 
-We apply the rules in nominal national currency, the unit in which budgets are set. Each amount is also shown in real terms at 2026 prices, using the IMF GDP deflator rebased to 2026, and in US\$ at each year's IMF exchange rate. Cross-country percentages and medians are real: the real increase as a percentage of the 2026 health budget, and the real increase per person in constant 2026 US\$.
+- **Protect amount:** the increase in health expenditure required to preserve *h* while the overall government budget expands. It equals *h* multiplied by the increase in total government expenditure since 2026.
+- **Upper ask:** the largest eligible increase generated by either the country's positive historical trend in health's budget share or annual increases of 0.25, 0.50, or 0.75 percentage points. Eligible amounts must fall between the protect amount and the ceiling. If none qualifies, the protect amount is retained.
+- **Ceiling:** the entire projected increase in government expenditure relative to 2026. This is an accounting upper bound, **not** a realistic or recommended allocation of all additional fiscal resources to health.
+
+The framework is not applied when projected nominal government expenditure does not exceed its 2026 level. In such cases, the central issue is contraction of the fiscal envelope rather than allocation of incremental resources. All amounts are calculated initially in current national currency, consistent with budget formulation. For comparability, they are also expressed at constant 2026 prices using the IMF GDP deflator and in US dollars using the IMF exchange rate for the relevant year. Percentage increases and cross-country medians refer to real values unless explicitly stated otherwise.
 
 ```{r engine-prescription}
 ## Section 2 engine: the ceiling, protect amount, candidates and upper ask for
@@ -1051,11 +1016,9 @@ data.frame(
 )
 ```
 
-## From the engine to the slides
+## Analytical outputs
 
-Each slide chunk below reads one list of tables, `mine`, which we build here from the engine's objects. The same slide
-chunks are run in the final chunk on the report's own output tables, which carry the same columns, so the check
-compares like with like. The labels in this chunk only name groups and periods; none of them computes anything new.
+The results below combine country-level estimates, group summaries, and fiscal-space scenarios. Tables and figures draw directly on the analytical datasets, while a final validation section compares reported values with the reference outputs. Detailed computational steps are available in the accompanying R code.
 
 ```{r slide-helpers}
 ## The bundle of tables every slide reads, the names of the matching report outputs, the labels the
@@ -1135,37 +1098,21 @@ short_names <- countries |>
   select(iso3, short, sort_name)
 ```
 
-# The deck
+# Results
 
-## Cover. What accounted for the change in government health spending, 2000 to 2023
+## Government health expenditure: historical drivers, 2000-2023
 
-*Kicker on the slide: Global decomposition.*
+The historical analysis addresses three related questions: How much has government health expenditure per capita changed? How much of that change is associated with economic growth, the size of government, and health's share of public expenditure? And where has the allocation to health improved or deteriorated despite changes in the broader economy?
 
-On the cover, we show the title, a subtitle naming the three parts, and the questions the deck answers: how much of the
-change in government health spending per person came from the economy, from a larger government budget and from a
-larger share of the budget for health; where health lost ground; and how much the health budget could ask for in 2027
-to 2029. The cover's count of countries with a window and its data sources come from the chunks that follow, so no
-computation sits here.
+# Part I. Decomposition of government health spending, 2000-2023
 
-# Section 1. The decomposition, 2000-2023
+## 1. Three drivers of government health expenditure per capita
 
-## Slide 1. Three parts of government health spending per person
+*How do economic capacity, government size, and budget priority combine to finance public health spending?*
 
-*Question on the slide: Where can more public money for health come from?*
+The expenditure identity links GDP per capita to the government's share of GDP and the proportion of government expenditure allocated to health. Applying it to countries with complete annual records for 2000-2023 establishes comparable expenditure levels at the beginning and end of the period. The component levels are calculated from aggregated GDP, public expenditure, health expenditure, and population.
 
-On the first slide, we set out the identity and fill in the three parts with world levels. The countries with all three parts in
-every year from 2000 to 2023 are taken as one block: summed real GDP over summed population gives GDP per person, summed
-government spending over summed GDP gives the size of government, and summed government health spending over summed
-government spending gives health's share. The product of the three equals government health spending per person, in
-2000 and in 2023.
-
-We use the chart to show the change from 2013 to 2023 for every country with all parts and population in both years, again as one
-block, and split the change into the three parts. The bars are stacked as a waterfall: each part starts where the previous one
-ends, and the last bar is the total. The shares under the chart divide the economy part and the health priority part by
-the total.
-
-We show two sets of countries on the slide. The levels need every year from 2000 to 2023 and the change needs only 2013 and
-2023, so the change covers more countries than the levels.
+The 2013-2023 decomposition examines the sources of change using all countries with complete observations at both endpoints. Each component contributes positively or negatively to the total change in real expenditure per capita. The two calculations use different country samples because the level comparison requires complete annual records, whereas the decomposition requires only the endpoints. Estimates should therefore be compared within, rather than across, these samples.
 
 ```{r slide-01-identity, results = "asis", fig.height = 4.6}
 ## Slide 1: the identity in levels for the balanced panel as a whole (2000, 2023), and the world's
@@ -1245,24 +1192,13 @@ ggplot(steps) +
   )
 ```
 
-## Slide 2. Real government health spending per person, 2000 to 2023
+## 2. Evolution of real government health expenditure per capita, 2000-2023
 
-*Question on the slide: How much did government health spending per person grow?*
+*How did public health spending evolve across countries and income groups?*
 
-We follow real government health spending per person from 2000 to 2023 in two ways. The solid line is the
-median of the balanced panel, the countries with all three parts in every year, with the middle half of those countries
-shaded. The dashed line takes the same countries as one block: their summed spending over their summed population.
-Keeping one fixed set of countries means the lines move only because spending moved, not because countries entered or
-left the data. The note under the chart gives the median of all countries with data in a given year for comparison.
+Real government health expenditure per capita is summarised using a balanced panel with complete observations throughout 2000-2023. The country median and interquartile range capture the typical experience and dispersion, while the population-weighted aggregate measures total government health spending relative to the combined population. Maintaining a fixed panel prevents changes in country coverage from being mistaken for expenditure growth. A separate annual median based on all available observations provides additional context.
 
-We use a different statistic for the "median country grew ... log points a year" in the lead. Each country's 23-year rate is the
-year-weighted average of its three period rates (10, 9 and 4 years), which is exact for log points, and the median is
-taken across those countries. The panel on the right of the slide, repeated in the second table, gives the median by
-income group; the high-to-low ratio divides the high-income group's spending per person by the low-income group's, both
-as wholes.
-
-We use the median and the whole to answer different questions. The whole follows the large high-income spenders, while the
-median follows a typical country, so the gap between the two lines is itself part of the finding.
+The annualised country-level rate for 2000-2023 is derived from the year-weighted changes across 2000-2010, 2010-2019, and 2019-2023. Income-group medians illustrate differences in country trajectories; the ratio of aggregate spending per capita in high- and low-income groups captures the scale of the spending gap. The distinction between median and aggregate results is important: large, high-spending countries can dominate the global aggregate without representing the experience of a typical country.
 
 ```{r slide-02-trend, results = "asis"}
 ## Slide 2: the trend 2000-2023 (median, middle half, as a whole), the median country's 23-year
@@ -1377,20 +1313,13 @@ ggplot(world_trend, aes(year)) +
   )
 ```
 
-## Slide 3. Growth and its three parts by period, world
+## 3. Historical drivers of spending growth across three periods
 
-*Question on the slide: Is the economy still carrying the growth?*
+*Has economic growth remained the principal contributor to higher health expenditure?*
 
-We compare three fixed periods, 2000-2010, 2010-2019 and 2019-2023. The chart takes the world as one block in
-each period (every country with all parts and population at both ends of the period), so its three parts add up to the
-total. The table gives the median country, where each part's median is taken across countries on its own, so the part
-medians need not add up to the median total. The count of economy-led countries in each period follows the pattern rule
-explained under slide 7.
+The decomposition is compared across 2000-2010, 2010-2019, and 2019-2023. For each period, the global aggregate is constructed from countries with complete endpoint observations, preserving the exact sum of contributions. Separately calculated country medians indicate the typical direction and magnitude of each component, while the distribution of economy-led countries shows how frequently GDP growth was the dominant contributor.
 
-We calculate each period rate as an average over the years in the period. The last period is only four years long and includes the
-pandemic jump and its partial reversal, so one unusual year weighs more in its rates than in the two longer periods. A falling economy part in the
-median country is the main reading of the slide; whether the budget parts can keep growth going without the economy is
-the question the rest of Section 1 takes up.
+The 2019-2023 interval requires particular caution. Its four-year duration captures the exceptional fiscal and economic changes associated with the COVID-19 pandemic and their partial reversal, making it less comparable to the two longer periods. Weakening contributions from GDP per capita raise an important fiscal question: to what extent can changes in the overall public spending envelope and the allocation to health sustain expenditure growth when economic growth slows?
 
 ```{r slide-03-periods, results = "asis", fig.height = 4.4}
 ## Slide 3: the world by fixed period, as a whole (chart) and as the median country (table), and the
@@ -1441,15 +1370,13 @@ plot_parts(whole, "label") +
   labs(title = "World as a whole: the three parts add up to the total")
 ```
 
-## Slide 4. Growth and its three parts by income group, latest ten-year window
+## 4. Spending growth by income group
 
-*Question on the slide: Which income groups grew, and from which part?*
+*How do the sources of government health spending growth differ by income level?*
 
-We repeat the split for the four income groups over the latest window. The table reports the median country, using each country's own window (2013-2023 for most). The chart reports each group as a whole for the fixed years 2013 and 2023, because an aggregate needs the same years for every member. The third table shows the largest member's share of group government health spending in 2023, calculated as spending per person times population.
+Country-level medians are reported for the most recent eligible window, generally 2013-2023, while income-group aggregates use the common 2013 and 2023 endpoints. These two perspectives reveal whether the broad trajectory of an income group reflects the experience of most member countries or is concentrated in its largest contributors.
 
-Large members shape a group taken as a whole: India in lower middle income, China in upper middle income and the United
-States in high income. A whole that grows fast can therefore mostly reflect one country, and a whole that falls can hide
-a typical country that grew, which is what slide 6 shows for low income.
+Aggregate results are particularly sensitive to large countries, including India among lower-middle-income countries, China among upper-middle-income countries, and the United States among high-income countries. Differences between the median and the aggregate should therefore be interpreted as evidence of uneven contributions within groups rather than conflicting estimates of the same quantity.
 
 ```{r slide-04-income, results = "asis", fig.height = 4.8}
 ## Slide 4: income groups over the latest window, the median country (table) and each group as a
@@ -1508,19 +1435,13 @@ plot_parts(whole, "label", xlab = "Average annual change, log points, 2013-2023"
   labs(title = "Each income group as a whole, 2013-2023: the three parts add up")
 ```
 
-## Slide 5. Growth and its three parts by World Bank region, latest ten-year window
+## 5. Regional differences in the drivers of spending growth
 
-*Question on the slide: Where did growth come from, region by region?*
+*Which components account for changes in government health expenditure across regions?*
 
-We put the seven World Bank regions in one heat table: the median country on the left (own window) and the
-region as a whole on the right (2013-2023), each with the three parts and the total. Blue cells added to spending per
-person and rust cells subtracted, darker for larger values. North America (two countries) and South Asia (six) have
-fewer than eight countries, so the two regions are shown but not compared, in paler rows. The bar chart on the right of
-the slide, given here as the second table, counts the countries in each region whose spending per person fell over
-their window.
+The analysis compares the median country within each World Bank region with the regional aggregate for 2013-2023. Positive and negative contributions are distinguished for economic capacity, government size, and health priority. Counts of countries with declining real health expenditure per capita provide a complementary measure of the breadth of progress or reversal.
 
-A region's median and its whole can point in different directions, most clearly in East Asia and Pacific, where the
-economy accounts for most of the whole's growth while health priority adds more in the median country.
+Regional medians and aggregates can diverge substantially. In East Asia and the Pacific, for example, economic growth accounts for most of the increase in the regional aggregate, whereas greater budget priority for health contributes more prominently to the median country's trajectory. North America and South Asia have fewer than eight eligible countries and are included for completeness without being used for direct regional comparisons.
 
 ```{r slide-05-regions, results = "asis", fig.height = 5}
 ## Slide 5: World Bank regions over the latest window, median country and region as a whole, and the
@@ -1605,15 +1526,13 @@ ggplot(heat_long, aes(x = part, y = region)) +
   theme(panel.grid = element_blank())
 ```
 
-## Slide 6. Low-income countries: change in spending, 2013 to 2023
+## 6. Divergent outcomes among low-income countries, 2013-2023
 
-*Question on the slide: Why do the typical low-income country and the group as a whole disagree?*
+*Why can expenditure rise in the typical country while falling for the group as a whole?*
 
-We find that the low-income median country grew, while the group as a whole fell. Each bar shows one country's change in annual government health spending from 2013 to 2023, in US\$ million at 2023 prices (spending per person times population, for countries with all parts and population in both years). Rust marks countries whose series carries a data flag. Group spending grew more slowly than population, so spending per person for the group as a whole fell; three flagged countries (Syria, Sudan and Yemen) account for most of the loss.
+The median low-income country recorded an increase in real government health expenditure per capita between 2013 and 2023, even as the aggregate for the income group declined. The country-level comparison reports the change in annual government health expenditure at constant 2023 prices, combining per-capita expenditure with population for countries with complete endpoint information.
 
-We use the statistics table to show both summaries with and without the flagged countries. Both statements on the slide are
-true at once: the typical low-income government raised spending per person, while the group's combined spending per
-person fell. A few large losses in money terms can outweigh many small gains.
+The apparent divergence reflects differences in country size and the magnitude of spending changes. Aggregate expenditure grew more slowly than the combined population, resulting in a decline in expenditure per capita. Large absolute losses in Syria, Sudan, and Yemen, each subject to data-quality flags, contributed substantially to the group result. Comparing estimates with and without flagged countries helps assess the sensitivity of the aggregate to these exceptional observations.
 
 ```{r slide-06-low-income, results = "asis", fig.height = 6.4}
 ## Slide 6: each low-income country's change in annual spending 2013-2023 (US$
@@ -1726,18 +1645,13 @@ ggplot(low_chart, aes(x = change, y = country, fill = flag_status)) +
   )
 ```
 
-## Slide 7. Four patterns of change, latest ten-year window and three periods
+## 7. Patterns of expenditure growth across countries and periods
 
-*Question on the slide: Did countries grow through the economy or through the budget?*
+*Are increases driven primarily by GDP growth, government expansion, or prioritisation of health?*
 
-We assign each country one of four pattern names. A country is declining if spending per person fell over the window;
-otherwise the pattern is named after the largest of the three parts: economy-led, budget-led (size of government) or
-priority-led (health's share). The names describe the arithmetic, not a cause. The first table counts the patterns over
-the latest window by income group, the second does the same for the world in each fixed period, and the third follows
-countries from 2010-2019 into 2019-2023.
+Countries are grouped into four mutually exclusive patterns: declining expenditure per capita, economy-led growth, government-size-led growth, and health-priority-led growth. For countries with positive growth, the classification follows the component with the largest contribution. The distribution is reported by income group for the latest observation window, across historical periods globally, and for countries observed in both 2010-2019 and 2019-2023.
 
-We find that countries change pattern often between periods, so a pattern says more about a decade than about a country's lasting
-character. Budget-led and priority-led countries together outnumber the economy-led ones over the latest window.
+Growth patterns are not fixed national characteristics. Countries frequently move between categories as economic conditions and fiscal priorities change. Across the most recent windows, government-size-led and health-priority-led cases together outnumber economy-led cases, demonstrating the importance of fiscal and allocation decisions alongside GDP growth. The categories remain descriptive and do not attribute changes to specific reforms.
 
 ```{r slide-07-patterns, results = "asis", fig.height = 4.6}
 ## Slide 7: pattern counts by income group (latest window) and by period (world), and how often a
@@ -1849,17 +1763,13 @@ ggplot(shares, aes(x = 100 * count / n, y = group, fill = pattern)) +
   labs(x = "Share of countries (labels: countries)", y = NULL, title = "Four patterns of change")
 ```
 
-## Slide 8. Economy part against health priority part, by country
+## 8. Economic growth and declining budget priority for health
 
-*Question on the slide: Where did health lose budget share while the economy grew?*
+*Where did economic capacity improve while health received a smaller share of public expenditure?*
 
-We plot each country as a point over its latest window: the economy part on the horizontal axis and the health priority part on
-the vertical axis, both in log points a year. The lower right quarter, shaded, holds the countries where health's share
-of government spending fell while real GDP per person grew; those countries are drawn in rust and named by income group
-in the second table. The four counts in the corners come from the signs alone, so a country on an axis line is counted
-on the side the rule puts it.
+The country-level comparison places the contribution from real GDP per capita on the horizontal axis and the contribution from health's budget share on the vertical axis. Countries in the lower-right quadrant experienced positive economic growth alongside a declining share of government expenditure allocated to health. These cases are also identified by income group to distinguish the prevalence of this pattern across different economic contexts.
 
-Our chart shows the range containing most countries, while the corner counts include countries outside that range. A falling health share in a growing economy does not always mean spending fell. In many countries with a falling share, the economy part exceeded the loss of priority, so spending per person still rose. The slide therefore treats the share and the total as separate measures.
+A declining budget share does not necessarily imply declining health expenditure per capita. Where GDP growth more than compensates for the reduction in health priority, real spending can still rise. For this reason, changes in the budget share and changes in per-capita expenditure should be examined separately. The figure focuses on the central range of observations; quadrant counts also include countries outside the displayed range.
 
 ```{r slide-08-quadrants, results = "asis", fig.height = 5.6}
 ## Slide 8: the economy part against the health priority part for every country with a window, the
@@ -1948,19 +1858,13 @@ ggplot(points, aes(econ, priority)) +
   )
 ```
 
-## Slide 9. Health's share of government spending, 2000 to 2023
+## 9. The allocation to health before and after the pandemic
 
-*Question on the slide: Did the pandemic rise in health's budget share hold?*
+*How much of the pandemic-era increase in health's budget share persisted through 2023?*
 
-We follow the median share of government spending that goes to health in each income group from 2000 to 2023,
-with the world median dashed and the pandemic years 2020 and 2021 shaded. Each median is taken over the group's
-countries with data in that year. The tables follow the same countries through 2019, 2021 and 2023 and sort the countries into
-five paths: rose and kept rising; rose, partly reversed, but still above 2019; rose, then fell back to or below 2019;
-did not rise by 2021 but stood above 2019 by 2023; and did not rise, at or below 2019 in 2023. "Kept part of the rise"
-counts the first two paths.
+Median health shares of total government expenditure are tracked from 2000 to 2023 by income group and for the world. The analysis also follows a consistent set of countries across 2019, 2021, and 2023 to distinguish temporary increases from allocations that remained above pre-pandemic levels.
 
-Our data stop in 2023. Whether the remaining rise is a lasting change in priorities or a slow withdrawal of pandemic
-spending needs later years.
+Five pathways are identified: continued increases after 2021; partial reversal while remaining above 2019; complete reversal to or below 2019; an increase by 2023 despite no increase by 2021; and no sustained increase relative to 2019. The first two constitute retention of at least part of the pandemic-era increase. Because the series ends in 2023, these findings cannot yet establish whether higher budget shares represent a lasting change in fiscal priorities.
 
 ```{r slide-09-health-share, results = "asis"}
 ## Slide 9: the median share of government spending for health by income group, 2000-2023, and the
@@ -2060,14 +1964,13 @@ ggplot(share_lines, aes(year, med_slice, colour = group, linetype = group)) +
   theme(legend.position = "none")
 ```
 
-## Slide 10. Instructive examples within income groups, latest ten-year window
+## 10. Countries with sustained growth supported by public budgets
 
-*Question on the slide: Which countries grew fast through the budget, and kept growing?*
+*Which countries combined rapid spending growth with sustained fiscal support for health?*
 
-We select examples using a rule applied within each income group over the latest window. A country qualifies if its total growth is at or above its group's 75th percentile, the size of government and health priority together account for at least half of that growth, spending per person grew in both halves (start to middle year, then middle year to end), and its series carries no data flag. The first table gives the thresholds; the second gives the three parts, total and two halves for each example. The slide's halves column uses the most common pair of half-windows, while a country with different halves has its own years after its name.
+Illustrative cases are selected through common criteria rather than subjective country rankings. Eligible countries must be in the upper quartile of spending growth within their income group, derive at least half of their growth from the combined contributions of government size and health priority, record growth in both halves of the observation window, and have no identified data-quality flag. The results report the underlying growth rates and component contributions for each selected country.
 
-We use the list as a starting point for reading budget records, not a ranking of policy. Fast growth from a low base is common
-among the examples, and the reasons behind each record lie in budget documents that this decomposition does not see.
+These cases highlight spending trajectories that merit further investigation, particularly where growth has been sustained rather than concentrated in a single interval. They should not be interpreted as evidence of effective policy by themselves. Differences in baseline expenditure and the specific fiscal decisions behind these patterns require additional examination of national budget and policy records.
 
 ```{r slide-10-examples, results = "asis", fig.height = 6.4}
 ## Slide 10: the instructive examples (thresholds by income group, the three
@@ -2143,19 +2046,13 @@ plot_parts(bars, "label", xlab = "Log points a year", facet = "group") +
   labs(title = "The three parts and the total, instructive examples")
 ```
 
-## Slide 11. Warning cases within income groups, latest ten-year window
+## 11. Countries experiencing expenditure declines or erosion of health priority
 
-*Question on the slide: Where did spending fall, or health lose what growth added?*
+*Where did government health spending fall, or where did declining health priority offset economic gains?*
 
-We define a country as a warning case if spending per person fell over its window, or if the economy part was positive and health
-priority took away at least half of the economy part. The "offset" column
-gives the share of the economy part that the fall in priority took away. Countries that meet the rule but carry a data
-flag are listed apart in the third table with their flag letters (B break, S shock, E extreme end year, L very low
-level), because a flagged series can produce a decline or an offset that is an artefact of the accounts. A window
-other than 2013-2023 is shown after the country's name.
+Cases warranting closer examination are identified when real government health expenditure per capita declined or when a reduction in health's budget share offset at least half of the positive contribution from economic growth. The offset measure expresses the negative contribution of health priority relative to the positive economic contribution. Countries meeting these criteria but carrying a data-quality flag are reported separately, because sudden breaks, shocks, unusual endpoints, or extreme expenditure levels may affect the estimated trend.
 
-We can easily miss the offsets, because spending per person still rose in every one of them: health's falling share does
-not show in the total.
+An important finding is that loss of health priority can be obscured by positive overall expenditure growth. Where GDP growth more than compensates for a declining health share, per-capita spending still rises. Assessing fiscal commitment to health therefore requires examining the composition of growth, not only its net direction.
 
 ```{r slide-11-warnings, results = "asis", fig.height = 9}
 ## Slide 11: the warning cases without a data flag (declines and priority offsets), and the
@@ -2239,13 +2136,13 @@ plot_parts(bars, "label", xlab = "Log points a year", facet = "group") +
   labs(title = "The three parts and the total, warning cases without a data flag")
 ```
 
-## Slide 12. Limits of the decomposition
+## 12. Interpretation and data limitations
 
-*Question on the slide: What can this decomposition not tell us?*
+*What can and cannot be concluded from an expenditure decomposition?*
 
-On the last slide of Section 1, we place the cautionary evidence alongside the limits. The bar chart shows the share of countries in each income group whose window carries at least one data flag; the second table counts each flag rule (a country can carry more than one). The slide also lists windows ending in 2024, a year GHED releases in stages, the one country without a window and the weight of the largest member in each income group.
+Several considerations qualify the interpretation of these results. First, the decomposition is an accounting identity, not a causal model; its components can also move mechanically in opposite directions, as when falling GDP raises government expenditure as a share of GDP. Second, constant-price comparisons depend on price and currency conversions that may be volatile during periods of high inflation or exchange-rate adjustment. Third, changes in statistical classification or accounting practices can create apparent breaks in expenditure shares. GHED's domestic government health expenditure series also excludes certain externally financed resources.
 
-We set out five limits on interpretation. The split is an identity, so the parts move together: a fall in GDP raises the government share of GDP on its own. The real-terms conversion mixes prices and exchange rates, so high inflation can distort the economy part. Reclassifications change the shares, while domestic spending excludes external grants that pass through the budget. Part medians do not add up, and group totals reflect their largest members. The rules for examples, warnings and flags are explicit choices that can be changed.
+Group medians must be distinguished from aggregates dominated by large member countries. Results can also be sensitive to the endpoints selected and to the operational criteria used to identify examples and cases warranting further scrutiny. The accompanying quality indicators describe the frequency of potential breaks, shocks, extreme endpoints, and unusual expenditure levels; coverage information identifies the countries with incomplete observation windows.
 
 ```{r slide-12-limits, results = "asis", fig.height = 3.6}
 ## Slide 12: data flags by income group and by rule, windows ending in 2024, countries without a
@@ -2331,29 +2228,21 @@ ggplot(flag_share, aes(x = pct, y = group)) +
   )
 ```
 
-# Section 2. The 2027-2029 health budget prescription
+# Part II. Fiscal space for government health expenditure, 2027-2029
 
-## Slide 13. How much should the health budget ask for, 2027 to 2029?
+## 13. Translating fiscal projections into health budget scenarios
 
-*Kicker on the slide: Section 2.*
+*What additional resources could be allocated to health as government budgets evolve?*
 
-On the divider, we open Section 2 with its subtitle, "The least to ask for, the most to ask for, and the room growth leaves",
-and list the titles of the eight slides that follow. The numbers behind those slides come from the prescription engine
-described above, so no computation sits here.
+The forward-looking framework distinguishes three amounts: the **protect amount**, which maintains health's existing budget share; the **upper ask**, which applies more ambitious but bounded changes in health's share; and the **ceiling**, representing the total projected increase in government expenditure. Together, they provide a transparent starting point for budget discussions, not a substitute for country-specific expenditure planning or a normative spending target.
 
-## Slide 14. The method in one country: Kenya, 2024 to 2029
+## 14. Illustrating the framework: Kenya, 2024-2029
 
-*Question on the slide: How much should the health budget ask for?*
+*How do macroeconomic projections translate into a potential increase in Kenya's health budget?*
 
-We use Kenya to show the method on one country, in billions of Kenyan shillings at current prices. The top panel is GDP from the
-IMF; the middle panel is government spending on the IMF path, with the flat-share path dotted; the bottom panel is the
-health budget. The growth of government spending above its 2026 level is the ceiling. Holding health's 2026 share
-(*h*, the value at the end of Kenya's window, held to 2026) on that growth gives the protect amount, the least to ask for. The upper
-ask is the largest admissible candidate; in Kenya the own trend in health's share is positive but smaller than the
-+0.75-point step, so the step sets the ask.
+Kenya illustrates the interaction between GDP growth, the projected government-expenditure envelope, and alternative allocations to health. The analysis uses IMF projections of GDP and government expenditure and compares the IMF spending path with a scenario that keeps government expenditure at a constant share of GDP. Values are initially expressed in billions of Kenyan shillings at current prices.
 
-From 2026 on, we use IMF projections, and *h* itself is a nowcast for 2025 and 2026. The amounts here are nominal;
-the real versions, and the conversion to US\$, come on the next slides.
+The protect amount preserves the health share assumed for 2026, based on the latest available observation. The ceiling is the increase in total government expenditure above its 2026 level. The upper ask is determined by the largest eligible increase in health's budget share: Kenya's historical trend is positive, but the fixed increase of 0.75 percentage points per year produces the larger eligible amount. Because the 2025-2026 health share is carried forward rather than directly observed, subsequent results should be read as conditional projections, not approved budgets.
 
 ```{r slide-14-kenya, results = "asis", fig.height = 6.6}
 ## Slide 14: Kenya, the method drawn from 2024 to 2029 (GDP, government spending on both paths, the
@@ -2442,15 +2331,13 @@ ggplot(kenya_long, aes(year, v, colour = line, linetype = line)) +
   )
 ```
 
-## Slide 15. Protect amount, upper ask and ceiling by income group, 2029
+## 15. Fiscal space for health by income group in 2029
 
-*Question on the slide: How much room does growth leave, and how much must health ask for?*
+*How do the protect amount, upper ask, and fiscal ceiling differ across income levels?*
 
-We compare the median country's protect amount, upper ask and ceiling for 2029 on the IMF path, in real terms, across income groups. The chart shows each real increase over 2026 as a per cent of the 2026 health budget, using a log scale because the ceiling is many times the protect amount. The table gives the same medians in constant 2026 US\$ per person. Each median is calculated separately, and the upper ask includes only countries where the method applies.
+The comparison reports median country-level increases in 2029 relative to the 2026 baseline under the IMF expenditure path. Estimates are expressed in real terms, both as percentages of the 2026 health budget and as increases in constant-2026 US dollars per capita. Each median is calculated independently; the upper-ask summary includes only countries for which the framework applies.
 
-The ceiling equals the protect amount divided by health's share, so a country spending 5% of its budget on health has a
-ceiling twenty times its protect amount, and one spending 15% about seven times. The ratio explains why the ceiling is very large in
-per cent where health's share is small, while the dollar amounts per person stay small in low-income countries.
+The ceiling can be much larger than the protect amount when health accounts for only a small share of government expenditure. For example, at a health share of 5%, the ceiling is twenty times the protect amount, compared with roughly seven times at a 15% share. This arithmetic explains why the ceiling may appear very large in percentage terms even where the absolute additional resources available per person remain limited, particularly in low-income countries. It should not be interpreted as an attainable health allocation.
 
 ```{r slide-15-groups, results = "asis", fig.height = 4.4}
 ## Slide 15: median protect amount, upper ask and ceiling in 2029 (IMF path, real), by
@@ -2540,18 +2427,13 @@ ggplot(dots, aes(x = v, y = group)) +
   )
 ```
 
-## Slide 16. Where the method does not apply, 2027 to 2029
+## 16. Countries facing a constrained or contracting fiscal envelope
 
-*Question on the slide: Where is the budget itself the question?*
+*Where do projected budgets leave no positive nominal fiscal space for the proposed allocation framework?*
 
-Our method needs a growing government budget. Where government spending in national currency is lower than in 2026, the
-method does not apply and the question becomes the fiscal envelope rather than health's priority. The first table counts
-those countries by year on each path, the countries where the budget grows in currency but falls in real terms, and the
-countries where the real upper ask is larger than the real growth of the whole budget. The second table lists every
-country in which government spending does not grow in at least one year.
+The framework requires total nominal government expenditure to exceed its 2026 baseline. When the budget is unchanged or contracting, there is no positive incremental envelope on which to apply the protect and upper-ask rules. The analysis identifies these countries under both expenditure paths and distinguishes nominal expansion from real purchasing-power gains. It also identifies cases where the proposed real upper ask exceeds the real growth of government expenditure.
 
-On the IMF path, we find that most cases where the method does not apply come from a falling projected spending share, a fiscal stance, rather than from a
-shrinking economy: with the share held flat, only three countries remain, those where nominal GDP itself falls.
+Under the IMF path, many inapplicable cases reflect a projected reduction in government expenditure relative to GDP rather than a contraction in nominal GDP itself. Holding the government-expenditure share of GDP constant substantially reduces the number of such cases, leaving three countries where nominal GDP is projected to decline. This sensitivity underscores the influence of fiscal-policy assumptions on estimates of prospective resources for health.
 
 ```{r slide-16-not-apply, results = "asis", fig.height = 4}
 ## Slide 16: countries where the method does not apply (government spending does not grow), where
@@ -2645,19 +2527,13 @@ ggplot(counts_by_year, aes(x = v, y = year, fill = series)) +
   )
 ```
 
-## Slide 17. The upper ask: own trend against the fixed steps, 2027 to 2029
+## 17. What determines the upper-ask scenario?
 
-*Question on the slide: What sets the upper ask: the country's own trend or a fixed step?*
+*How do historical improvements in health priority compare with standard increases in the budget share?*
 
-We define the upper ask as the largest admissible candidate: the country's own trend in health's share (if the share rose over the
-window) or a fixed step of +0.25, +0.5 or +0.75 points a year. The chart and the first table count which candidate set
-the ask in each year, among the countries where the method applies. The second table sorts every country's own trend
-into bands, by income group: the trend is the change in health's share over the window divided by the window's length,
-in percentage points a year.
+The upper ask is selected from positive historical trends in health's share of government expenditure and fixed annual increases of 0.25, 0.50, or 0.75 percentage points, provided the resulting amounts remain between the protect amount and the ceiling. The analysis identifies the scenario that sets the upper ask in each year and describes the distribution of historical health-share changes across income groups.
 
-We find that health's share rose by more than 0.75 points a year in only one country over the last decade, so the +0.75 step sets the
-ask almost everywhere and the upper ask behaves close to a fixed rule. The same step is a larger relative rise where
-health's share is low.
+Only one country experienced an annual increase in health's budget share above 0.75 percentage points during its latest observation window. Consequently, the 0.75-percentage-point scenario determines the upper ask for nearly all eligible cases. Although expressed as a uniform absolute change, this assumption represents a substantially larger proportional increase for countries starting from a low health budget share. It is therefore best regarded as an illustrative ambition scenario rather than a universal policy recommendation.
 
 ```{r slide-17-setter, results = "asis", fig.height = 3.4}
 ## Slide 17: which candidate set the upper ask in each year (IMF path), the own trend in health's
@@ -2758,17 +2634,13 @@ ggplot(set_by, aes(x = 100 * n / total, y = year, fill = setter)) +
   )
 ```
 
-## Slide 18. IMF spending path against a flat spending share, 2029
+## 18. Sensitivity to the government-expenditure path
 
-*Question on the slide: Does the IMF's spending path change the answer?*
+*How much do projected fiscal-policy choices affect the resources potentially available for health?*
 
-The IMF path carries the IMF's fiscal assumptions for each country, including consolidation. The flat path holds the
-2026 expenditure share of GDP, so government spending grows with GDP. The scatter compares each country's real growth of
-government spending from 2026 to 2029 on the two paths; points above the dashed line get more from the flat share. The
-table compares the median real ceiling and the median real upper ask on the two paths, by income group.
+Two alternative expenditure paths are compared for 2029. The IMF path incorporates projected changes in government expenditure relative to GDP, including potential fiscal consolidation. The constant-share path holds government expenditure at its 2026 share of GDP and therefore allows expenditure to change with nominal GDP. The country comparison reports real government-expenditure growth under both assumptions, alongside the resulting protect, upper-ask, and ceiling estimates by income group.
 
-We find that the ceiling depends heavily on the path and the upper ask less so, since the ask applies a share to the budget while
-the ceiling is the whole increase. The path also decides where the method applies at all.
+The ceiling is particularly sensitive to the overall government-expenditure path because it encompasses the full increase in the public budget. The upper ask is generally less sensitive, since it reflects a selected share of that envelope, but it can still change materially. The assumed fiscal path also determines whether the framework is applicable when nominal expenditure fails to grow. Any estimate of fiscal space for health should therefore be read in the context of the underlying macro-fiscal scenario.
 
 ```{r slide-18-paths, results = "asis", fig.height = 5.6}
 ## Slide 18: the IMF path against a flat spending share in 2029: country by country real growth of
@@ -2865,18 +2737,13 @@ ggplot(in_view, aes(imf_growth, flat_growth)) +
   )
 ```
 
-## Slide 19. Worked examples: Ethiopia, Kenya and Indonesia, 2029
+## 19. Country illustrations: Ethiopia, Kenya, and Indonesia in 2029
 
-*Question on the slide: What would the prescription ask for in three countries?*
+*How do the proposed scenarios translate into country-specific budget amounts?*
 
-We use three countries to show the method at work in 2029 on the IMF path. For each, the ladder chart expresses the protect amount
-and every candidate as a percentage of the real ceiling (ceiling = 100), with the upper ask darkest. The tables give the
-amounts behind the ladder: the increase over 2026 in national currency at current prices, in US\$ million at the IMF's
-2029 exchange rate, and as a real percentage of the 2026 health budget.
+Ethiopia, Kenya, and Indonesia illustrate how the same allocation rules operate under different fiscal and expenditure conditions. For each country, proposed increases are compared with the projected ceiling under the IMF path. Estimates are presented in current national currency, in US dollars using the IMF's 2029 exchange rate, and as real percentage increases relative to the 2026 health budget.
 
-In Ethiopia, we find no trend candidate because its health share fell over the window, and its prices rise fast enough that a
-nominal increase shrinks a good deal in real terms. Kenya's own trend is positive but below the step. In Indonesia the
-ask is a small share of the nominal ceiling. In all three the +0.75-point step sets the ask.
+Ethiopia has no eligible historical-trend scenario because health's share declined over its observation window, and projected inflation substantially reduces the real value of nominal increases. Kenya's positive historical trend is smaller than the fixed 0.75-percentage-point scenario. In Indonesia, the upper ask occupies only a limited share of the nominal ceiling. In all three countries, the fixed 0.75-percentage-point increase determines the upper ask, illustrating both the consistency of the rule and the variation in its fiscal implications.
 
 ```{r slide-19-examples, results = "asis", fig.height = 4}
 ## Slide 19: Ethiopia, Kenya and Indonesia in 2029, IMF path: protect amount, candidates, upper ask
@@ -3004,18 +2871,13 @@ ggplot(ladder, aes(x = bar, y = cand, fill = role)) +
   )
 ```
 
-## Slide 20. The policy table: Ethiopia, Kenya and Indonesia, 2027 to 2029
+## 20. Annual health budget scenarios for Ethiopia, Kenya, and Indonesia
 
-*Question on the slide: What would the prescription ask for in three countries?*
+*What additional spending would each scenario imply in 2027, 2028, and 2029?*
 
-We use the policy table to lay out every amount the method produces for the three countries in each year from 2027 to 2029, on
-the IMF path: the protect amount, each candidate, the upper ask with the candidate that sets it, and the ceiling. Each
-cell gives the increase over 2026 in national currency at current prices, then its real rise as a percentage of the
-2026 health budget and its value in US\$ million at that year's IMF exchange rate. A dash in the own-trend column means
-the country's health share fell over its window, so there is no trend candidate.
+Country-level estimates show how the protect amount, eligible increases in health's budget share, the selected upper ask, and the overall expenditure ceiling evolve from 2027 to 2029 under the IMF path. Each amount represents an increase relative to the 2026 baseline and is reported in current national currency, as a real percentage of the baseline health budget, and in US dollars at the relevant year's projected exchange rate. A missing historical-trend scenario indicates that health's budget share declined during the observation window.
 
-Because the slide is itself a table, we print the table in this chunk and draw no separate figure. Nominal amounts include
-inflation, and the real percentage in each cell shows how much of each increase is left at 2026 prices.
+Nominal budget increases should not be equated with increases in purchasing power. The accompanying real percentages adjust for changes in the GDP deflator, allowing the nominal fiscal request to be considered alongside its implied change in real resources. These estimates describe potential budget increments, not expenditure commitments or estimates of health-service delivery costs.
 
 ```{r slide-20-policy-table, results = "asis"}
 ## Slide 20: the policy table for Ethiopia, Kenya and Indonesia, 2027 to
@@ -3065,15 +2927,13 @@ for (iso in c("ETH", "KEN", "IDN")) {
 show_tables(tables)
 ```
 
-## Slide 21. Limits of the prescription and what each country team checks
+## 21. Implications and limitations for health budget planning
 
-*Question on the slide: What can the prescription not tell a country?*
+*What additional evidence is needed to turn a fiscal scenario into a credible health budget proposal?*
 
-On the last slide of Section 2, we present the prescription as a starting point for budget dialogue. The prescription tests an ask only against the ceiling, so whether the money can be spent, and spent well, is for the country team to judge from budget execution, an investment case, the latest approved budget and its health share, and health prices that may rise faster than the GDP deflator. The slide reports coverage counts and countries without an IMF series. Peer benchmarks by region or income group do not determine the ask.
+The framework offers an initial benchmark for discussions about the scale of additional government resources for health. It does not determine whether a proposed allocation is affordable alongside competing priorities, can be executed effectively, or will produce commensurate health benefits. Country-level assessment should therefore consider the latest approved budget, actual expenditure execution, service-delivery capacity, the expected cost and impact of proposed investments, and whether health-sector prices may increase faster than the economy-wide GDP deflator.
 
-We set amounts in current prices, the budget unit, and the countries whose 2029 budget grows in currency but falls in
-real terms are counted here again. The IMF projections are revised twice a year, and the own trend is a decade's average
-that can hide a recent reversal.
+Several uncertainties remain. IMF projections are revised periodically, and the historical budget-share trend may mask recent changes in priorities. A government budget can expand in nominal currency while contracting in real terms. Some countries also lack complete IMF series or exchange-rate projections. Regional and income-group comparisons provide context but should not automatically determine country-specific requests. The protect amount and upper ask are planning scenarios, not validated financing needs.
 
 ```{r slide-21-limits, results = "asis"}
 ## Slide 21: coverage of the prescription and the countries without an IMF
@@ -3113,15 +2973,11 @@ tables <- list("Coverage" = coverage)
 show_tables(tables)
 ```
 
-# Annex A. Every country's decomposition, by World Bank region
+# Annex A. Country-level decomposition by World Bank region
 
-Across the seven annex A slides, we list every country with its latest window, grouped by World Bank region: government health
-spending per person in the window's last year (constant 2023 US\$), the total change and its three parts in log points a
-year, the pattern (with an asterisk where health lost priority while the economy grew) and any data flag. Two regions
-are long enough to be split over two slides, alphabetically. Each slide gets its own chunk, built from one function, and
-prints the slide's table and the region line in its lead (the pattern counts and, for regions with at least eight
-countries, the median country's total). The slides are tables, so no figure is drawn. Inc.: Low, LM lower middle, UM
-upper middle, High; flags: B break, S shock, E extreme end, L level.
+This annex presents the latest available decomposition for each country, organised by World Bank region. For each country, the tables report the observation window, real government health expenditure per capita in the final year (constant 2023 US dollars), the annualised total change and its three component contributions, and the dominant growth pattern. An asterisk identifies countries where economic growth was positive but health's share of government expenditure declined.
+
+Quality flags indicate a possible **break (B)**, **shock (S)**, **unusual endpoint (E)**, or **extreme expenditure level (L)**. Income groups are abbreviated as **Low**, **LM** (lower-middle income), **UM** (upper-middle income), and **High**. Regional summaries report growth-pattern counts and, where at least eight countries are available, the median change in government health expenditure per capita. The annex provides complete country coverage rather than a ranking of performance.
 
 ```{r annex-helpers}
 ## The seven slides shared by annexes A and B (which countries each
@@ -3224,13 +3080,9 @@ annex_a <- function(bundle, slide) {
 }
 ```
 
-## Slide 22. Annex A1. East Asia and Pacific; South Asia
+## 22. East Asia and the Pacific; South Asia
 
-*Kicker on the slide: Annex: every country, by World Bank region.*
-
-On the first annex slide, we list East Asia and Pacific and South Asia. Spending per person in the US\$ column runs from
-single digits in Myanmar and Bangladesh to several thousand dollars in Australia and New Zealand, and several small
-island series carry level or break flags.
+The distribution of real government health expenditure per capita varies widely across the two regions, from low single-digit dollar amounts in some countries to several thousand dollars in Australia and New Zealand. Results for countries with unusual levels or abrupt changes in the published series are accompanied by quality flags and should be interpreted with particular care.
 
 ```{r slide-22-annex-a1, results = "asis"}
 ## Slide 22, annex A1: East Asia and Pacific; South Asia.
@@ -3238,13 +3090,9 @@ tables <- annex_a(mine, slide = 1)
 show_tables(tables)
 ```
 
-## Slide 23. Annex A2. Europe and Central Asia (1 of 2)
+## 23. Europe and Central Asia (part 1)
 
-*Kicker on the slide: Annex: every country, by World Bank region.*
-
-We split Europe and Central Asia, the largest region, alphabetically over two slides; the first slide carries the first
-half of the list. Most countries in the region are economy-led, a larger share than in any other region, as the
-region line in the first table shows.
+Across Europe and Central Asia, economic growth is the leading contributor to increased government health expenditure per capita in a comparatively large share of countries. The country-level decomposition provides a more detailed view of how the relative contributions of GDP, government size, and health priority differ within the region.
 
 ```{r slide-23-annex-a2, results = "asis"}
 ## Slide 23, annex A2: Europe and Central Asia, first half.
@@ -3252,12 +3100,9 @@ tables <- annex_a(mine, slide = 2)
 show_tables(tables)
 ```
 
-## Slide 24. Annex A3. Europe and Central Asia (2 of 2); no World Bank region
+## 24. Europe and Central Asia (part 2); countries without a regional classification
 
-*Kicker on the slide: Annex: every country, by World Bank region.*
-
-We show the second half of Europe and Central Asia, followed by the two countries with no World Bank region in the
-classification (the Cook Islands and Niue).
+The remaining countries in Europe and Central Asia are followed by the Cook Islands and Niue, which are not assigned to a World Bank region in the classification used here. Their results are retained for completeness without attributing them to a regional aggregate.
 
 ```{r slide-24-annex-a3, results = "asis"}
 ## Slide 24, annex A3: Europe and Central Asia, second half; countries without a World Bank region.
@@ -3265,12 +3110,9 @@ tables <- annex_a(mine, slide = 3)
 show_tables(tables)
 ```
 
-## Slide 25. Annex A4. Latin America and the Caribbean; North America
+## 25. Latin America and the Caribbean; North America
 
-*Kicker on the slide: Annex: every country, by World Bank region.*
-
-We show Latin America and the Caribbean, then North America. The region as a whole grew slowly, with a small economy part, and
-Venezuela's window is shorter than ten years because its series has all three parts only from 2018.
+The regional comparison indicates relatively modest aggregate growth in Latin America and the Caribbean, with a limited contribution from economic capacity. Country trajectories are more varied. Venezuela has a shorter eligible observation window because complete data for the three components are available only from 2018.
 
 ```{r slide-25-annex-a4, results = "asis"}
 ## Slide 25, annex A4: Latin America and the Caribbean; North America.
@@ -3278,12 +3120,9 @@ tables <- annex_a(mine, slide = 4)
 show_tables(tables)
 ```
 
-## Slide 26. Annex A5. Middle East, North Africa, Afghanistan and Pakistan
+## 26. Middle East, North Africa, Afghanistan, and Pakistan
 
-*Kicker on the slide: Annex: every country, by World Bank region.*
-
-We show the Middle East, North Africa, Afghanistan and Pakistan. Several countries in the region carry data flags, among them
-Afghanistan, Lebanon, Syria and Yemen, so the totals of those countries are best read with the flags in view.
+Spending trajectories vary substantially across this region. Several countries, including Afghanistan, Lebanon, Syria, and Yemen, have quality flags indicating potential discontinuities, exceptional shocks, or unusual observations. Their estimated contributions should therefore be assessed alongside the reported data limitations and country context.
 
 ```{r slide-26-annex-a5, results = "asis"}
 ## Slide 26, annex A5: Middle East, North Africa, Afghanistan and Pakistan.
@@ -3291,12 +3130,9 @@ tables <- annex_a(mine, slide = 5)
 show_tables(tables)
 ```
 
-## Slide 27. Annex A6. Sub-Saharan Africa (1 of 2)
+## 27. Sub-Saharan Africa (part 1)
 
-*Kicker on the slide: Annex: every country, by World Bank region.*
-
-We show the first half of the alphabetical list for Sub-Saharan Africa. The region counts more declining countries than any other
-region, and as a whole the region's growth came mostly from health priority rather than from the economy.
+Sub-Saharan Africa contains more countries with declining government health expenditure per capita than any other region in the comparison. At the aggregate level, improved budget priority for health contributed more to expenditure growth than economic capacity. Country-level estimates reveal considerable variation around this regional pattern.
 
 ```{r slide-27-annex-a6, results = "asis"}
 ## Slide 27, annex A6: Sub-Saharan Africa, first half.
@@ -3304,11 +3140,9 @@ tables <- annex_a(mine, slide = 6)
 show_tables(tables)
 ```
 
-## Slide 28. Annex A7. Sub-Saharan Africa (2 of 2)
+## 28. Sub-Saharan Africa (part 2)
 
-*Kicker on the slide: Annex: every country, by World Bank region.*
-
-We show the second half of Sub-Saharan Africa. South Sudan's window is shorter than ten years.
+The remaining country estimates complete the regional comparison. South Sudan is assessed over a shorter eligible observation window, which should be considered when comparing its annualised change with the estimates for countries observed over longer periods.
 
 ```{r slide-28-annex-a7, results = "asis"}
 ## Slide 28, annex A7: Sub-Saharan Africa, second half.
@@ -3316,15 +3150,11 @@ tables <- annex_a(mine, slide = 7)
 show_tables(tables)
 ```
 
-# Annex B. Every country's prescription for 2029, by World Bank region
+# Annex B. Country-level fiscal space scenarios for 2029
 
-Across the seven annex B slides, we give every country's prescription for 2029 on the IMF path, in the same slide sets as annex A:
-health's share of government spending (held from the end of the window to 2026); the protect amount, upper ask and
-ceiling (P / A / C) in US\$ million at the IMF's 2029 exchange rate and as a real increase in per cent of the 2026 health
-budget; the candidate that sets the upper ask; and the years in which the method does not apply. The lead of each slide
-gives the region's median protect amount, upper ask and ceiling. "No IMF series" marks a country without IMF projections;
-"Not available" in the US\$ column marks a country without an IMF exchange rate for 2029 (Bolivia and Pakistan), whose
-real percentages are still available. Each slide gets its own chunk; the slides are tables, so no figure is drawn.
+The second annex reports the 2029 health budget scenarios for countries with sufficient IMF projections and a usable health expenditure baseline. Estimates under the IMF path include the health budget share carried forward to 2026; the **protect amount**, **upper ask**, and **ceiling** (P, A, and C); and the scenario that determines the upper ask. Changes are expressed in US dollars at the projected 2029 exchange rate and as real percentages of the 2026 health budget.
+
+A country is marked as outside the framework in years when nominal government expenditure does not exceed the 2026 level. **No IMF series** indicates that projections are unavailable. **Not available** in the US-dollar field indicates a missing 2029 exchange-rate projection; real percentage estimates may still be reported. Regional medians summarise the distribution of the protect amount, upper ask, and ceiling where the framework is applicable.
 
 ```{r annex-b-helper}
 ## Annex B: the table of one slide, printing the 2029 prescription row by row.
@@ -3399,13 +3229,9 @@ annex_b <- function(bundle, slide) {
 }
 ```
 
-## Slide 29. Annex B1. East Asia and Pacific; South Asia
+## 29. East Asia and the Pacific; South Asia
 
-*Kicker on the slide: Annex: the prescription by country, 2029.*
-
-We show East Asia and Pacific and South Asia. South Asia's median ceiling is the largest of any region relative to the health
-budget: the ceiling is all the growth in government spending, while the health budget is only health's share of that
-spending.
+South Asia has the largest median ceiling relative to its baseline health budget. This primarily reflects the difference between total projected government-expenditure growth and the comparatively small share of expenditure currently allocated to health. The ceiling should be interpreted as the scale of the overall fiscal envelope, not as an allocation target for the health sector.
 
 ```{r slide-29-annex-b1, results = "asis"}
 ## Slide 29, annex B1: East Asia and Pacific; South Asia.
@@ -3413,12 +3239,9 @@ tables <- annex_b(mine, slide = 1)
 show_tables(tables)
 ```
 
-## Slide 30. Annex B2. Europe and Central Asia (1 of 2)
+## 30. Europe and Central Asia (part 1)
 
-*Kicker on the slide: Annex: the prescription by country, 2029.*
-
-We show the first half of Europe and Central Asia. Health's share is higher in much of the region, so the ceiling is a smaller
-multiple of the protect amount than in South Asia or Sub-Saharan Africa.
+Health accounts for a relatively high share of government expenditure in much of Europe and Central Asia. As a result, the projected ceiling is generally a smaller multiple of the protect amount than in regions where health receives a lower initial budget share.
 
 ```{r slide-30-annex-b2, results = "asis"}
 ## Slide 30, annex B2: Europe and Central Asia, first half.
@@ -3426,12 +3249,9 @@ tables <- annex_b(mine, slide = 2)
 show_tables(tables)
 ```
 
-## Slide 31. Annex B3. Europe and Central Asia (2 of 2); no World Bank region
+## 31. Europe and Central Asia (part 2); countries without a regional classification
 
-*Kicker on the slide: Annex: the prescription by country, 2029.*
-
-We show the second half of Europe and Central Asia, then the two countries without a World Bank region (the Cook Islands and
-Niue); neither country has an IMF series.
+The regional estimates are followed by the Cook Islands and Niue, neither of which has the IMF projections required for this scenario analysis. They remain listed to make the limits of country coverage explicit.
 
 ```{r slide-31-annex-b3, results = "asis"}
 ## Slide 31, annex B3: Europe and Central Asia, second half; countries without a World Bank region.
@@ -3439,12 +3259,9 @@ tables <- annex_b(mine, slide = 3)
 show_tables(tables)
 ```
 
-## Slide 32. Annex B4. Latin America and the Caribbean; North America
+## 32. Latin America and the Caribbean; North America
 
-*Kicker on the slide: Annex: the prescription by country, 2029.*
-
-We show Latin America and the Caribbean, then North America. Cuba has no GHED base and so no prescription; Ecuador and
-Venezuela have no IMF series.
+Country coverage is constrained by differences in the availability of baseline health spending and IMF projections. Cuba lacks the GHED baseline required for the scenarios, while Ecuador and Venezuela have no usable IMF projections in the source extract. These omissions should not be interpreted as evidence of an absence of fiscal space.
 
 ```{r slide-32-annex-b4, results = "asis"}
 ## Slide 32, annex B4: Latin America and the Caribbean; North America.
@@ -3452,12 +3269,9 @@ tables <- annex_b(mine, slide = 4)
 show_tables(tables)
 ```
 
-## Slide 33. Annex B5. Middle East, North Africa, Afghanistan and Pakistan
+## 33. Middle East, North Africa, Afghanistan, and Pakistan
 
-*Kicker on the slide: Annex: the prescription by country, 2029.*
-
-We show the Middle East, North Africa, Afghanistan and Pakistan. Several countries here have no IMF series, and Pakistan has real
-percentages but no US\$ amounts because the IMF gives no 2029 exchange rate.
+Several countries in this region lack the IMF series needed to estimate the expenditure scenarios. Pakistan has real percentage estimates but no corresponding 2029 US-dollar amounts because the relevant IMF exchange-rate projection is unavailable.
 
 ```{r slide-33-annex-b5, results = "asis"}
 ## Slide 33, annex B5: Middle East, North Africa, Afghanistan and Pakistan.
@@ -3465,12 +3279,9 @@ tables <- annex_b(mine, slide = 5)
 show_tables(tables)
 ```
 
-## Slide 34. Annex B6. Sub-Saharan Africa (1 of 2)
+## 34. Sub-Saharan Africa (part 1)
 
-*Kicker on the slide: Annex: the prescription by country, 2029.*
-
-We show the first half of Sub-Saharan Africa. Ceilings in per cent are large where health's share is low, and the countries where the
-method does not apply in some year show those years in the last column.
+Where health receives a small share of total government expenditure, the ceiling can be large relative to the existing health budget even when additional resources per person are limited. Countries without a positive projected nominal expenditure increment in particular years are identified separately, since the allocation framework is not applicable in those periods.
 
 ```{r slide-34-annex-b6, results = "asis"}
 ## Slide 34, annex B6: Sub-Saharan Africa, first half.
@@ -3478,11 +3289,9 @@ tables <- annex_b(mine, slide = 6)
 show_tables(tables)
 ```
 
-## Slide 35. Annex B7. Sub-Saharan Africa (2 of 2)
+## 35. Sub-Saharan Africa (part 2)
 
-*Kicker on the slide: Annex: the prescription by country, 2029.*
-
-We close the deck with the second half of Sub-Saharan Africa.
+The remaining country estimates complete the 2029 regional coverage. Differences in the projected budget envelope and the starting health expenditure share remain central to interpreting the range between preserving existing allocations and the more ambitious upper-ask scenarios.
 
 ```{r slide-35-annex-b7, results = "asis"}
 ## Slide 35, annex B7: Sub-Saharan Africa, second half.
@@ -3490,12 +3299,9 @@ tables <- annex_b(mine, slide = 7)
 show_tables(tables)
 ```
 
-# Check against the report's outputs
+# Reproducibility and validation
 
-In the final chunk, we run every slide chunk a second time, now on the report's own output tables (the tables the deck was
-built from), and compare the two results cell by cell as each cell would be printed, to the printed decimal. The table counts
-the numbers compared on each slide (every number inside a cell, including years and counts) and the cells of text, such
-as country names and pattern labels. Any mismatch stops the render with an error and lists the cells that differ.
+The reported results are checked against the reference output tables at the precision used for presentation. The validation compares numerical values (including years and counts) and categorical fields, such as country names and growth-pattern labels. Any discrepancy is identified by its location and stops the rendering process. This provides an explicit check that the analytical tables and the reported results remain consistent.
 
 ```{r check-against-report, results = "asis"}
 ## Final check: every number the slides print, computed in this file, against the same
