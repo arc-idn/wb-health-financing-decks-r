@@ -10,8 +10,12 @@ last chunk of each file checks the numbers printed by the file against the deck.
 | `Country financing brief/` | The 22-slide country health financing profile (Policymaker version) for one country, chosen by its three-letter ISO code. |
 
 Each folder contains everything the R Markdown file needs: the `.Rmd` file, data in `data/`, the Open Sans font in
-`fonts/`, and a rendered example (`.html`). Every path in the code is relative to the folder. The files download
+`fonts/`, and rendered examples (`.html`). Every path in the code is relative to the folder. The files download
 nothing when they run.
+
+To see the results without R, open `Global decomposition deck/global-decomposition-deck.html` or any page in
+`Country financing brief/examples/` in a web browser. Each country page has a **Country** list at the top: choose
+another of the fifteen reference countries and that country's page opens at once.
 
 ## What you need
 
@@ -116,6 +120,17 @@ for a country takes under a minute.
 countries <- readRDS("Country financing brief/data/countries.rds")
 countries[, c("iso3", "name")]
 ```
+
+**Ready-made pages for the fifteen reference countries.** `Country financing brief/examples/` holds one rendered page
+for each reference country, with the **Country** list at the top of every page. After a change to the analysis,
+rebuild all fifteen pages from the `Country financing brief` folder (about four minutes):
+
+```sh
+Rscript examples/build_examples.R
+```
+
+The script renders the same `.Rmd` file for each country and only adds the **Country** list to the top of each
+page.
 
 ## The check at the end of each file
 

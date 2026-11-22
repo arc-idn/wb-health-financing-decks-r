@@ -1554,6 +1554,33 @@ border-radius: 0px;
 
 
 
+<style>
+.country-switcher { position: sticky; top: 0; z-index: 1100; background: #ffffff;
+border-bottom: 1px solid #cccccc; padding: 8px 15px; font-size: 14px; }
+.country-switcher label { font-weight: 600; margin-right: 8px; }
+.country-switcher select { border: 1px solid #888888; border-radius: 0; padding: 3px 6px;
+font-size: 14px; background: #ffffff; }
+</style>
+<div class="country-switcher">
+<label for="country-select">Country</label>
+<select id="country-select" onchange="window.location.href = this.value">
+  <option value="country-financing-brief-BGD.html">Bangladesh</option>
+  <option value="country-financing-brief-KHM.html">Cambodia</option>
+  <option value="country-financing-brief-CIV.html">Côte d&#39;Ivoire</option>
+  <option value="country-financing-brief-EGY.html">Egypt</option>
+  <option value="country-financing-brief-ETH.html">Ethiopia</option>
+  <option value="country-financing-brief-GHA.html">Ghana</option>
+  <option value="country-financing-brief-IDN.html">Indonesia</option>
+  <option value="country-financing-brief-KEN.html" selected>Kenya</option>
+  <option value="country-financing-brief-LAO.html">Lao People&#39;s Democratic Republic</option>
+  <option value="country-financing-brief-MAR.html">Morocco</option>
+  <option value="country-financing-brief-NGA.html">Nigeria</option>
+  <option value="country-financing-brief-PHL.html">Philippines</option>
+  <option value="country-financing-brief-SEN.html">Senegal</option>
+  <option value="country-financing-brief-SLE.html">Sierra Leone</option>
+  <option value="country-financing-brief-ZAF.html">South Africa</option>
+</select>
+</div>
 
 <div id="header">
 
