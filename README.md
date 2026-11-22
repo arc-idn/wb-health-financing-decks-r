@@ -9,13 +9,14 @@ last chunk of each file checks the numbers printed by the file against the deck.
 | `Global decomposition deck/` | What accounted for the change in government health spending per person from 2000 to 2023 in every country with data, and the health budget prescription for 2027 to 2029 (35 slides). |
 | `Country financing brief/` | The 22-slide country health financing profile (Policymaker version) for one country, chosen by its three-letter ISO code. |
 
-Each folder contains everything the R Markdown file needs: the `.Rmd` file, data in `data/`, the Open Sans font in
-`fonts/`, and rendered examples (`.html`). Every path in the code is relative to the folder. The files download
-nothing when they run.
+Each folder contains everything the R Markdown file needs: the `.Rmd` file, data in `data/` and the Open Sans font
+in `fonts/`. Every path in the code is relative to the folder. The files download nothing when they run.
 
-To see the results without R, open `Global decomposition deck/global-decomposition-deck.html` or any page in
-`Country financing brief/examples/` in a web browser. Each country page has a **Country** list at the top: choose
-another of the fifteen reference countries and that country's page opens at once.
+To see the results without R, open `Global decomposition deck/global-decomposition-deck.html` in a web browser. For
+the country brief, the GitHub repository holds a ready-made page for each of the fifteen reference countries in
+[`Country financing brief/examples/`](https://github.com/arc-idn/wb-health-financing-decks-r/tree/main/Country%20financing%20brief/examples).
+Clone the repository, open any of those pages in a web browser and choose another country from the **Country** list
+at the top: that country's page opens at once.
 
 ## What you need
 
@@ -121,9 +122,11 @@ countries <- readRDS("Country financing brief/data/countries.rds")
 countries[, c("iso3", "name")]
 ```
 
-**Ready-made pages for the fifteen reference countries.** `Country financing brief/examples/` holds one rendered page
-for each reference country, with the **Country** list at the top of every page. After a change to the analysis,
-rebuild all fifteen pages from the `Country financing brief` folder (about four minutes):
+**Ready-made pages for the fifteen reference countries.** On GitHub, `Country financing brief/examples/` holds one
+rendered page for each reference country, with the **Country** list at the top of every page. Copies of this
+repository sent as a zip file leave the fifteen pages out, because together the pages take about 70 MB. To build
+the pages yourself, or to rebuild them after a change to the analysis, run this from the `Country financing brief`
+folder (about four minutes):
 
 ```sh
 Rscript examples/build_examples.R
