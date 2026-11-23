@@ -7,7 +7,7 @@ last chunk of each file checks the numbers printed by the file against the deck.
 | Folder | What the file rebuilds |
 |---|---|
 | `Global decomposition deck/` | What accounted for the change in government health spending per person from 2000 to 2023 in every country with data, and the health budget prescription for 2027 to 2029 (35 slides). |
-| `Country financing brief/` | The 22-slide country health financing profile (Policymaker version) for one country, chosen by its three-letter ISO code. |
+| `Country financing brief/` | The 23-slide country health financing profile (Policymaker version) for one country, chosen by its three-letter ISO code. |
 
 Each folder contains everything the R Markdown file needs: the `.Rmd` file, data in `data/` and the Open Sans font
 in `fonts/`. Every path in the code is relative to the folder. The files download nothing when they run.

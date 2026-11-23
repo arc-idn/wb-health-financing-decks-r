@@ -1923,7 +1923,7 @@ The assessment is organised around four areas: fiscal capacity and historical sp
 # currency
 POS <- c(
   q09 = 3, a3 = 4, q01 = 5, q02 = 6, q03 = 7, q04 = 8, q05 = 9, q06 = 10, q07 = 11, q08 = 12,
-  bs = 13, q10 = 14, q11 = 15, a1 = 16
+  bs = 13, q10 = 14, q11 = 15, a1 = 17
 )
 TITLES <- c(
   q09 = "The decomposition of government health spending",
@@ -1941,13 +1941,13 @@ TITLES <- c(
   q11 = "How much more funding is needed, and what would it buy?",
   a1 = "Annex A1: What is the main performance gap: health, financial protection, or both?"
 )
-N_SLIDES <- if (LCU_MAIN) 22 else 16
+N_SLIDES <- if (LCU_MAIN) 23 else 17
 contents <- data.frame(Slide = c(1, 2, POS), Title = c("Cover", "Contents", TITLES))
 knitr::kable(contents, row.names = FALSE)
 
 out <- setNames(paste(POS, TITLES), paste("Row", POS))
 if (LCU_MAIN) {
-  annex_row <- "17 Annex A2 to A7: slides 3, 5, 6, 8, 14 and 15 at market exchange rates, US$"
+  annex_row <- "18 Annex A2 to A7: slides 3, 5, 6, 8, 14 and 15 at market exchange rates, US$"
   out["Annex row"] <- annex_row
 }
 slide_values[[2]] <- out
@@ -1962,7 +1962,7 @@ In `r if (Q09$ready) Q09$year else "its latest complete year"`, government healt
 
 ```{r slide-03-decomposition}
 # We build slide 3 in local currency at 2023 prices, and the same slide in US$ for annex A2
-# (slide 17). A country without a 2023 rate has slide 3 in US$ and no annex copy.
+# (slide 18). A country without a 2023 rate has slide 3 in US$ and no annex copy.
 STEP_NAME <- c(
   rev = "Revenue, % of GDP",
   stance = "Fiscal stance (spending per unit of revenue)",
@@ -2170,12 +2170,12 @@ for (version in versions) {
     cf <- steps$cf[steps$step == binding]
     cf_text <- if (lcu) fmt_money(cf * rate) else fmt_money(cf, "US$")
     out["Binding step at its median"] <- paste0(
-      "would increase to ", cf_text, " per capita, compared with ", short_ghe
+      "would rise to ", cf_text, " per capita from ", short_ghe
     )
   } else if (Q09$peer_ok) {
     which_steps <- if (Q09$split) "Revenue and the fiscal stance are" else "Government spending is"
     out["No fiscal constraint"] <- paste0(
-      which_steps, " within 5% of the ", ADJ, " median or above it"
+      which_steps, " within 5% of or above the ", ADJ, " median"
     )
   }
   priority_step <- steps[steps$step == "priority", ]
@@ -2401,7 +2401,7 @@ MEASURE_FORMAT <- data.frame(
   )
 )
 
-# We build slide 5 with spending in PPP, and the same slide in US$ for annex A3 (slide 18);
+# We build slide 5 with spending in PPP, and the same slide in US$ for annex A3 (slide 19);
 # without local currency there is the US$ slide only
 SLIDE5 <- list()
 versions <- if (LCU_MAIN) c("main", "annex") else "main"
@@ -2606,7 +2606,7 @@ NO_PPP_6 <- LCU_MAIN && !is.finite(PROT_PPP$country$spending) &&
   is.finite(PROT_USD$country$spending)
 
 # We build slide 6 with spending in constant 2023 PPP dollars, and the same slide in constant
-# 2023 US$ for annex A4 (slide 19)
+# 2023 US$ for annex A4 (slide 20)
 SLIDE6 <- list()
 versions <- if (LCU_MAIN) c("main", "annex") else "main"
 for (version in versions) {
@@ -2672,7 +2672,7 @@ for (version in versions) {
         survey_years <- paste0(", surveys ", group$years[1], " to ", group$years[2])
       }
       out["Group median"] <- paste0(
-        "median is ", num(group$median, 1, suffix = "%"), " (latest survey of ", group$n,
+        "median is ", num(group$median, 1, suffix = "%"), " (latest surveys from ", group$n,
         " of ", group$N, " countries", survey_years, ")"
       )
     } else {
@@ -2803,7 +2803,7 @@ growth <- NA
 if (!is.null(TR$dec)) {
   growth <- TR$dec[["total"]]
   growth_median <- TR$median[["total"]]
-  what <- "real government health spending per capita"
+  what <- "real government health spending per person"
 } else if (!is.null(TR$che)) {
   growth <- TR$che$value
   growth_median <- TR$che$median
@@ -2953,7 +2953,7 @@ SVC_LABEL <- c(
   art = "People with HIV on treatment"
 )
 
-# We build slide 8 with spending in PPP, and the same slide in US$ for annex A5 (slide 20)
+# We build slide 8 with spending in PPP, and the same slide in US$ for annex A5 (slide 21)
 SLIDE8 <- list()
 versions <- if (LCU_MAIN) c("main", "annex") else "main"
 for (version in versions) {
@@ -3157,7 +3157,7 @@ if (!WF$ready) {
   out["Figure note"] <- paste0("median of ", WF$N, " ", ADJ, " countries")
   if (is.finite(latest$phys) && is.finite(latest$nurse)) {
     out["Doctors, nurses and midwives"] <- paste0(
-      "Doctors ", density_text[["phys"]], ", nurses and midwives ", density_text[["nurse"]],
+      "Doctors ", density_text[["phys"]], "; nurses and midwives ", density_text[["nurse"]],
       " per 1,000 (",
       latest$year, ")."
     )
@@ -3237,8 +3237,8 @@ if (!is.null(MED$avail)) {
   )
 } else {
   avail <- paste0(
-    "Whether essential medicines are in stock in ", poss(SHORT),
-    " health facilities is not in global data."
+    "Global data do not show whether ", poss(SHORT),
+    " facilities have essential medicines in stock."
   )
 }
 
@@ -3588,20 +3588,25 @@ if (!POOL$ready) {
   cfa <- schemes_shown[schemes_shown$id == "cfa", ]
   oop <- schemes_shown[schemes_shown$id == "oop", ]
   vol <- schemes_shown[schemes_shown$id == "vol", ]
-  if (is.finite(cfa$median)) {
-    cfa_versus <- paste0(", against ", AN_ADJ, " ", ADJ, " median of ", cfa$median_text)
-  } else {
-    cfa_versus <- paste0(" (no publishable ", ADJ, " median)")
-  }
   oop_part <- "."
   if (is.finite(oop$value)) {
     oop_median <- if (is.finite(oop$median)) paste0(" (median ", oop$median_text, ")") else ""
     oop_part <- paste0("; households paid ", oop$value_text, " out of pocket", oop_median, ".")
   }
-  out["Lead"] <- paste0(
-    "In ", POOL$year, ", ", cfa$value_text,
-    " of current health spending was pooled through compulsory schemes", cfa_versus, oop_part
-  )
+  # the deck words the lead differently when there is a group median to compare with
+  if (is.finite(cfa$median)) {
+    out["Lead"] <- paste0(
+      "In ", POOL$year, ", compulsory schemes pooled ", cfa$value_text,
+      " of current health spending, compared with ", AN_ADJ, " ", ADJ, " median of ",
+      cfa$median_text, oop_part
+    )
+  } else {
+    out["Lead"] <- paste0(
+      "In ", POOL$year, ", ", cfa$value_text,
+      " of current health spending was pooled through compulsory schemes (no publishable ", ADJ,
+      " median)", oop_part
+    )
+  }
   for (i in seq_len(nrow(schemes_shown))) {
     label <- POOL_LABEL[[schemes_shown$id[i]]]
     out[paste("Row:", label)] <- schemes_shown$value_text[i]
@@ -3706,7 +3711,7 @@ Projected changes in government health expenditure per person from `r if (PROJ$r
 
 ```{r slide-14-fiscal-space}
 # We build slide 14 in local currency at 2023 prices, and the same slide in US$ for annex A6
-# (slide 21)
+# (slide 22)
 PART_NAME <- c(growth = "economic growth", budget = "government budget", prio = "reprioritisation")
 SLIDE14 <- list()
 versions <- if (LCU_MAIN) c("main", "annex") else "main"
@@ -4068,7 +4073,7 @@ The two fiscal scenarios are evaluated at the final projection horizon. Addition
 FLAT <- FUND$ready && all(abs(FUND$last$dg) <= 0.005 * FUND$base$ghe)
 
 # We build slide 15 in local currency at 2023 prices, and the same slide in US$ for annex A7
-# (slide 22)
+# (slide 23)
 SLIDE15 <- list()
 versions <- if (LCU_MAIN) c("main", "annex") else "main"
 for (version in versions) {
@@ -4385,11 +4390,35 @@ knitr::kable(tibble::enframe(slide_values[[15]], name = "What the slide prints",
 if (!is.null(SLIDE15$main$plot)) print(SLIDE15$main$plot)
 ```
 
+## Annex. Introduction
+
+The slide introduces the annex and lists each annex slide with its number.
+
+```{r slide-16-annex-divider}
+# The divider repeats the contents slide's labels: annex A1, then the six US$ copies when the
+# country has local-currency data
+annex_labels <- TITLES[["a1"]]
+if (LCU_MAIN) {
+  annex_labels <- c(
+    annex_labels,
+    "Annex A2: Decomposition, US$",
+    "Annex A3: Health for spending, US$",
+    "Annex A4: Financial protection, US$",
+    "Annex A5: Budgets and services, US$",
+    "Annex A6: Fiscal space, US$",
+    "Annex A7: Funding needed, US$"
+  )
+}
+annex_numbers <- POS[["a1"]] + seq_along(annex_labels) - 1
+slide_values[[16]] <- c(SHORT, paste(annex_numbers, annex_labels))
+knitr::kable(tibble::enframe(slide_values[[16]], name = "What the slide prints", value = "Value"))
+```
+
 ## Annex A1. Relative gaps in health outcomes and financial protection
 
 Health outcome performance and financial protection are jointly assessed using standardised deviations from cross-country expenditure benchmarks (Sections 5 and 6). Higher values indicate more favourable performance on both axes. A score of -0.5 or lower identifies a deficit in the relevant dimension, separating countries into four groups: no deficit, health outcomes deficit only, financial protection deficit only, and deficits in both. Scores are based on PPP expenditure comparisons, but the underlying models and reference years may differ; consequently, the figure indicates the presence of relative deficits rather than providing a directly comparable measure of their magnitude.
 
-```{r slide-16-annex-a1-performance-gap}
+```{r slide-17-annex-a1-performance-gap}
 # The main slide uses the PPP scores, unless the country has a protection score only at
 # market exchange rates
 usd_protection_only <- is.finite(GAP_USD$protection$z) && !is.finite(GAP_PPP$protection$z)
@@ -4432,12 +4461,12 @@ if (!isTRUE(health_fit$ready)) {
 out <- c()
 if (gap_fit$gap == "both") {
   out["Lead"] <- paste0(
-    "A gap in both: ", health_text, " and ", protection_text, " are 0.5 standard deviations",
-    " or more below the level typical at the country's spending."
+    "A gap in both: ", health_text, " and ", protection_text, " are at least 0.5 standard",
+    " deviations below the level typical at the country's spending."
   )
 } else if (gap_fit$gap == "health" && !is.null(protection_text)) {
   out["Lead"] <- paste0(
-    "The gap is in health: ", health_text, " is below the -0.5 line; ", protection_text,
+    "Health has the gap: ", health_text, " is below -0.5, while ", protection_text,
     " is not."
   )
 } else if (gap_fit$gap == "health") {
@@ -4446,7 +4475,7 @@ if (gap_fit$gap == "both") {
   )
 } else if (gap_fit$gap == "protection" && !is.null(health_text)) {
   out["Lead"] <- paste0(
-    "The gap is in financial protection: ", protection_text, " is below the -0.5 line; ",
+    "Financial protection has the gap: ", protection_text, " is below -0.5, while ",
     health_text, " is not."
   )
 } else if (gap_fit$gap == "protection") {
@@ -4506,8 +4535,8 @@ if (group_counts[["n"]] > 0) {
     group_counts[["protection"]], " a protection gap and ", group_counts[["both"]], " both."
   )
 }
-slide_values[[16]] <- out
-knitr::kable(tibble::enframe(slide_values[[16]], name = "What the slide prints", value = "Value"))
+slide_values[[17]] <- out
+knitr::kable(tibble::enframe(slide_values[[17]], name = "What the slide prints", value = "Value"))
 
 # The figure: every country's health score against its protection score, with the -0.5 lines
 if (nrow(gap_fit$points) > 0) {
@@ -4575,15 +4604,15 @@ if (nrow(gap_fit$points) > 0) {
 
 The accounting decomposition in Section 3 is expressed here in current US dollars at market exchange rates. GDP per person and government health expenditure are compared with corresponding US-dollar income-group medians; these monetary comparisons may differ from results presented in PPP terms. Fiscal ratios and the procedure for identifying the principal constraint remain unchanged. Countries without national-currency conversion data already use US dollars in the main assessment and therefore do not require this supplementary presentation.
 
-```{r slide-17-annex-a2-decomposition-usd}
+```{r slide-18-annex-a2-decomposition-usd}
 # We built this copy with slide 3, in US$; a country without local currency has no annex
 # copy, because its main slides are already in US$
 if (!LCU_MAIN) {
   cat("No annex copy: the main slides of", SHORT, "are already in US$.\n")
 }
 if (LCU_MAIN) {
-  slide_values[[17]] <- SLIDE3$annex$values
-  knitr::kable(tibble::enframe(slide_values[[17]], name = "What the slide prints", value = "Value"))
+  slide_values[[18]] <- SLIDE3$annex$values
+  knitr::kable(tibble::enframe(slide_values[[18]], name = "What the slide prints", value = "Value"))
 }
 if (LCU_MAIN && !is.null(SLIDE3$annex$plot)) print(SLIDE3$annex$plot)
 ```
@@ -4592,15 +4621,15 @@ if (LCU_MAIN && !is.null(SLIDE3$annex$plot)) print(SLIDE3$annex$plot)
 
 The health outcomes benchmark from Section 5 is re-estimated using expenditure in current US dollars at market exchange rates. The reference period and statistical specification remain unchanged. Differences in international price levels and exchange rates may alter country positions, the fitted relationship, the relative performance gap, and the set of closest comparators.
 
-```{r slide-18-annex-a3-health-usd}
+```{r slide-19-annex-a3-health-usd}
 # We built this copy with slide 5, in US$; a country without local currency has no annex
 # copy, because its main slides are already in US$
 if (!LCU_MAIN) {
   cat("No annex copy: the main slides of", SHORT, "are already in US$.\n")
 }
 if (LCU_MAIN) {
-  slide_values[[18]] <- SLIDE5$annex$values
-  knitr::kable(tibble::enframe(slide_values[[18]], name = "What the slide prints", value = "Value"))
+  slide_values[[19]] <- SLIDE5$annex$values
+  knitr::kable(tibble::enframe(slide_values[[19]], name = "What the slide prints", value = "Value"))
 }
 if (LCU_MAIN && !is.null(SLIDE5$annex$plot)) print(SLIDE5$annex$plot)
 ```
@@ -4609,15 +4638,15 @@ if (LCU_MAIN && !is.null(SLIDE5$annex$plot)) print(SLIDE5$annex$plot)
 
 Financial hardship is compared with government health expenditure in constant 2023 US dollars, using the same surveys and outcome definitions as Section 6. Expected hardship levels and the relevant comparison countries are determined from the US-dollar expenditure benchmark.
 
-```{r slide-19-annex-a4-protection-usd}
+```{r slide-20-annex-a4-protection-usd}
 # We built this copy with slide 6, in US$; a country without local currency has no annex
 # copy, because its main slides are already in US$
 if (!LCU_MAIN) {
   cat("No annex copy: the main slides of", SHORT, "are already in US$.\n")
 }
 if (LCU_MAIN) {
-  slide_values[[19]] <- SLIDE6$annex$values
-  knitr::kable(tibble::enframe(slide_values[[19]], name = "What the slide prints", value = "Value"))
+  slide_values[[20]] <- SLIDE6$annex$values
+  knitr::kable(tibble::enframe(slide_values[[20]], name = "What the slide prints", value = "Value"))
 }
 if (LCU_MAIN && !is.null(SLIDE6$annex$plot)) print(SLIDE6$annex$plot)
 ```
@@ -4626,15 +4655,15 @@ if (LCU_MAIN && !is.null(SLIDE6$annex$plot)) print(SLIDE6$annex$plot)
 
 Government health expenditure per person is expressed in current US dollars and compared with the corresponding income-group median. Service coverage indicators and their underlying reference periods are unchanged from Section 8.
 
-```{r slide-20-annex-a5-services-usd}
+```{r slide-21-annex-a5-services-usd}
 # We built this copy with slide 8, in US$; a country without local currency has no annex
 # copy, because its main slides are already in US$
 if (!LCU_MAIN) {
   cat("No annex copy: the main slides of", SHORT, "are already in US$.\n")
 }
 if (LCU_MAIN) {
-  slide_values[[20]] <- SLIDE8$annex$values
-  knitr::kable(tibble::enframe(slide_values[[20]], name = "What the slide prints", value = "Value"))
+  slide_values[[21]] <- SLIDE8$annex$values
+  knitr::kable(tibble::enframe(slide_values[[21]], name = "What the slide prints", value = "Value"))
 }
 if (LCU_MAIN && !is.null(SLIDE8$annex$plot)) print(SLIDE8$annex$plot)
 ```
@@ -4643,15 +4672,15 @@ if (LCU_MAIN && !is.null(SLIDE8$annex$plot)) print(SLIDE8$annex$plot)
 
 Projected health expenditure paths are expressed in constant 2023 US dollars. Economic assumptions, expenditure shares, and the decomposition of changes are identical to those in Section 14; national-currency amounts are converted using GHED’s 2023 exchange rate.
 
-```{r slide-21-annex-a6-fiscal-space-usd}
+```{r slide-22-annex-a6-fiscal-space-usd}
 # We built this copy with slide 14, in US$; a country without local currency has no annex
 # copy, because its main slides are already in US$
 if (!LCU_MAIN) {
   cat("No annex copy: the main slides of", SHORT, "are already in US$.\n")
 }
 if (LCU_MAIN) {
-  slide_values[[21]] <- SLIDE14$annex$values
-  knitr::kable(tibble::enframe(slide_values[[21]], name = "What the slide prints", value = "Value"))
+  slide_values[[22]] <- SLIDE14$annex$values
+  knitr::kable(tibble::enframe(slide_values[[22]], name = "What the slide prints", value = "Value"))
 }
 if (LCU_MAIN && !is.null(SLIDE14$annex$plot)) print(SLIDE14$annex$plot)
 ```
@@ -4660,15 +4689,15 @@ if (LCU_MAIN && !is.null(SLIDE14$annex$plot)) print(SLIDE14$annex$plot)
 
 The final-horizon analysis from Section 15 is expressed in constant 2023 US dollars. Currency conversion affects estimates of additional expenditure and the economic value of benefits but does not change the modelled number of deaths averted.
 
-```{r slide-22-annex-a7-funding-usd}
+```{r slide-23-annex-a7-funding-usd}
 # We built this copy with slide 15, in US$; a country without local currency has no annex
 # copy, because its main slides are already in US$
 if (!LCU_MAIN) {
   cat("No annex copy: the main slides of", SHORT, "are already in US$.\n")
 }
 if (LCU_MAIN) {
-  slide_values[[22]] <- SLIDE15$annex$values
-  knitr::kable(tibble::enframe(slide_values[[22]], name = "What the slide prints", value = "Value"))
+  slide_values[[23]] <- SLIDE15$annex$values
+  knitr::kable(tibble::enframe(slide_values[[23]], name = "What the slide prints", value = "Value"))
 }
 if (LCU_MAIN && !is.null(SLIDE15$annex$plot)) print(SLIDE15$annex$plot)
 ```

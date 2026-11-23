@@ -8,7 +8,7 @@ The files were converted on 20 November 2026 from the site's data as of 17 Novem
 below are those of the sources. The two scripts that produced them are in `../data-raw/`; the Rmd does not
 need them. `convert_site_data.R` only reshapes: it reads the deck's published data files (listed below with their
 sha256, first 16 characters, as of 20 November 2026; the files themselves are not in this folder) and writes
-every value as published. `build_reference.R` builds `reference_slides.rds`, the text of all 22 slides for the 15
+every value as published. `build_reference.R` builds `reference_slides.rds`, the text of all 23 slides for the 15
 reference countries, from the deck's own HTML export of 20 November 2026; the Rmd's last chunk checks its numbers
 against that text.
 
